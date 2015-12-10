@@ -34,13 +34,12 @@ enum class OutputType {SCREEN, TEXT_FILE, JSON_FILE};
 void FindLocalMinima(Detector &det, double falsePositivePerHour, double beta, Detector::CalcType calcType, double &iTime, double &minM);
 
 struct CalcInfo {
-	CalcInfo(Detector det, double calcDist, string resultPath, Detector::CalcType cType, double fpPerHour, double beta, unsigned int uncertaintyCalcLoops = 0) : det(det), calcDist(calcDist), resultPath(resultPath), cType(cType), uncertLoops(uncertaintyCalcLoops), fpPerHour(fpPerHour), beta(beta) {
+	CalcInfo(Detector det, string resultPath, Detector::CalcType cType, double fpPerHour, double beta, unsigned int uncertaintyCalcLoops = 0) : det(det),resultPath(resultPath), cType(cType), uncertLoops(uncertaintyCalcLoops), fpPerHour(fpPerHour), beta(beta) {
 	}
 	CalcInfo() {
 	}
 	CalcInfo operator=(const CalcInfo &setData) {
 		det = setData.det;
-		calcDist = setData.calcDist;
 		cType = setData.cType;
 		resultPath = setData.resultPath;
 		uncertLoops = setData.uncertLoops;
@@ -52,7 +51,6 @@ struct CalcInfo {
 	Detector det;
 	double fpPerHour;
 	double beta;
-	double calcDist;
 	string resultPath;
 	int uncertLoops;
 	Detector::CalcType cType;
@@ -67,10 +65,11 @@ void FindGlobalMinima2(CalcInfo &info, double &time, double &bestM);
 class CalcThread {
 public:
 	CalcThread(int threadId, boost::shared_ptr<vector<CalcInfo>> calcValues, boost::shared_ptr<boost::mutex> calcValuesMutex, boost::shared_ptr<boost::mutex> outputMutex, OutputType out_t, boost::shared_ptr<property_tree::ptree> ptResults); // boost::shared_ptr<property_tree::ptree> ptResults, boost::shared_ptr<boost::mutex> ptMutex, OutputType out_type,
+	/*! This function is the main loop of the thread. It simply picks a data set to perform calculations on and calls CalcThread::CalcTimeAndAct().
+	 */
 	void operator()();
 private:
 	int CalcTimeAndAct(CalcInfo &info);
-	int CalcTimeAndAct(CalcInfo &info, double mGuess);
 	boost::shared_ptr<vector<CalcInfo>> calcValues;
 	boost::shared_ptr<boost::mutex> calcValuesMutex;
 	boost::shared_ptr<boost::mutex> outputMutex;
@@ -82,8 +81,10 @@ private:
 class CalcCoordinator {
 public:
 	CalcCoordinator(OutputType out_t = OutputType::SCREEN, std::string resultFileName = "results.txt");
+	/*! Starts as many calculation threads as there are cores in the computerand then waits for all the threads to exit.
+	 */
 	void RunCalculations();
-	void AddCalculation(const Detector &det, double distance, Detector::CalcType cType, string path, double fpPerHOur, double beta, int uncertLoops = 0);
+	void AddCalculation(const Detector &det, Detector::CalcType cType, string path, double fpPerHOur, double beta, int uncertLoops = 0);
 	~CalcCoordinator();
 private:
 	boost::shared_ptr<boost::mutex> outputMutex;

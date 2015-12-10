@@ -8,7 +8,9 @@ CalcCoordinator::CalcCoordinator(OutputType out_t, std::string resultFileName) :
 }
 
 CalcCoordinator::~CalcCoordinator() {
-	property_tree::write_json(outFileName, *pt.get());
+	if (out_t == OutputType::JSON_FILE) {
+		property_tree::write_json(outFileName, *pt.get());
+	}
 }
 
 
@@ -26,8 +28,8 @@ void CalcCoordinator::RunCalculations() {
 	}
 }
 
-void CalcCoordinator::AddCalculation(const Detector &det, double distance, Detector::CalcType cType, string path, double fpPerHour, double beta, int uncertLoops) {
-	calcInfo->push_back(CalcInfo(det, distance, path, cType, fpPerHour, beta, uncertLoops));
+void CalcCoordinator::AddCalculation(const Detector &det, Detector::CalcType cType, string path, double fpPerHour, double beta, int uncertLoops) {
+	calcInfo->push_back(CalcInfo(det, path, cType, fpPerHour, beta, uncertLoops));
 }
 
 
@@ -53,7 +55,7 @@ void CalcThread::operator()() {
 
 int CalcThread::CalcTimeAndAct(CalcInfo &info) {
 	vector<pair<string,string>> result;
-	info.det.SetDistance(info.calcDist);
+	
 	double time, actValue;
 	vector<double> timeVec;
 	vector<double> actVec;
@@ -155,8 +157,6 @@ void FindLocalMinima(CalcInfo &info, int target_C_L, double &iTime, double &minM
 	double upper_time = iTime + maxTimeDiff * 2; //To assist the algorithm slightly, we add the maximum time diff
 	double lower_time = 0.0;
 	
-	info.det.SetVelocity(8.3333); //Fix me
-	info.det.SetDistance(info.calcDist);
 	double alpha;
 	
 	//Find where we have C_L = target_C_L

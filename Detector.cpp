@@ -3,48 +3,15 @@
 
 #include "Detector.h"
 
-Detector::Detector(string bkgName, string distName, vector<string> dists, string angName, double activity, double activityUncertainty, bool He3) : bkg(), distResp(), angResp(), distance(2.5), integrationTime(1.0), velocity(8.333), activity(activity) {
-	if (He3) {
-		bkg = boost::shared_ptr<BaseMeasurement>(new He3_Measurement(dataLoc + bkgName + string(".spc")));
-	} else {
-		bkg = boost::shared_ptr<BaseMeasurement>(new NaI_Measurement(dataLoc + bkgName + string(".Spc")));
-	}
-	
-	distResp = DistResponse(distName, dists, activity, activityUncertainty, bkg, He3, true);
-	angResp = AngularResponse(angName, bkg, He3);
-}
-
-Detector::Detector(boost::shared_ptr<BaseMeasurement> bkg, vector<boost::shared_ptr<BaseMeasurement>> distMeasVec, vector<double> dists, vector<boost::shared_ptr<BaseMeasurement>> angMeasVec, vector<double> angles, double activity, double activityUncertainty) : bkg(bkg), distResp(), angResp(), distance(2.5), integrationTime(1.0), velocity(8.333), activity(activity) {
-	
-	distResp = DistResponse(distMeasVec, dists, activity, activityUncertainty, bkg);
-	angResp = AngularResponse(angMeasVec, angles, bkg);
+Detector::Detector(BkgResponse bkg, DistResponse distResp, AngularResponse angResp, double activity) : bkg(bkg), distResp(distResp), angResp(angResp), distance(2.0), integrationTime(1.0), velocity(8.333), activity(activity) {
 }
 
 Detector::Detector() : bkg(), distResp(), angResp(), activity(-1.0) {
 	
 }
 
-Detector::Detector(const Detector &det) : bkg(det.bkg), distResp(det.distResp), angResp(det.angResp), distance(det.distance), integrationTime(det.integrationTime), velocity(det.velocity), activity(det.activity) {
-	
-}
-
-Detector Detector::operator=(const Detector &setDet) {
-	bkg = setDet.bkg;
-	
-	distResp = setDet.distResp;
-	angResp = setDet.angResp;
-	
-	distance = setDet.distance;
-	
-	integrationTime = setDet.integrationTime;
-	velocity = setDet.velocity;
-	activity = setDet.activity;
-	//Fix me, check me (is this correct? are we missing something?)
-	return *this;
-}
-
 void Detector::RandomizeParameters() {
-	double newBkg = bkg->GetRandomizedCPS();
+	double newBkg = bkg.GetRandomizedCPS();
 	distResp.Randomize(newBkg);
 	angResp.Randomize(newBkg);
 }
@@ -162,7 +129,7 @@ ArrayXd pow(const double base, const ArrayXd exponent) {
 }
 
 double Detector::CriticalLimit(const double alpha) {
-	long double B = bkg->GetCPS() * integrationTime;
+	long double B = simBkg * integrationTime;
 	unsigned long long int i = 0;
 	long double res = 1.0;
 	while (res >= alpha) {
@@ -186,7 +153,7 @@ no_factorial:
 
 double Detector::CalcBoundaryTime(double alpha, int k) {
 	boost::math::chi_squared dist(2*(k+1));
-	return (boost::math::quantile(dist, 1 - alpha) / 2.0) / bkg->GetCPS();
+	return (boost::math::quantile(dist, 1 - alpha) / 2.0) / simBkg; //bkg.GetCPS() replaced with simBkg
 }
 
 void Detector::SetVelocity(double velocity) {
@@ -202,7 +169,7 @@ double Detector::CalcSignal(CalcType tp) {
 	} else {
 		sig = S_best(integrationTime);
 	}
-	double B = bkg->GetCPS() * integrationTime;
+	double B = simBkg * integrationTime;
 	return B + sig * activity;
 }
 
@@ -219,7 +186,7 @@ double Detector::CalcTruePositiveProb(double alpha, double i_time, CalcType tp) 
 	int critical_limit = int(CriticalLimit(alpha));
 	
 	
-	double B = bkg->GetCPS() * i_time;
+	double B = simBkg * i_time; // bkg.GetCPS() replaced with simBkg
 	double total = B + sig * activity;
 	
 	long double res = 1.0;
@@ -250,7 +217,7 @@ double Detector::CalcActivity(double alpha, double beta, CalcType tp) {
 	}
 	double critical_limit = CriticalLimit(alpha);
 	
-	FindActivityFunctor functor(sig, bkg->GetCPS() * integrationTime, critical_limit, beta);
+	FindActivityFunctor functor(sig, simBkg * integrationTime, critical_limit, beta); // bkg.GetCPS() replaced with simBkg
 	
 	VectorXd p(1);
 	VectorXd res(1);
@@ -314,7 +281,7 @@ void Detector::CalcActivityLimits(double alpha, double beta, CalcType tp, ArrayX
 		sig = S_best(integrationTime);
 	}
 	double critical_limit = CriticalLimit(alpha);
-	FindActivityFunctor functor(sig, bkg->GetCPS() * integrationTime, critical_limit, beta);
+	FindActivityFunctor functor(sig, simBkg * integrationTime, critical_limit, beta); //bkg.GetCPS() replaced by simBkg
 	
 	x = ArrayXd::LinSpaced(1000, 0.01, 2500);
 	y = ArrayXd::Zero(1000);
@@ -325,4 +292,8 @@ void Detector::CalcActivityLimits(double alpha, double beta, CalcType tp, ArrayX
 		functor(in, out);
 		y[i] = out[0];
 	}
+}
+
+void Detector::SetSimBkg(double newSimBkg) {
+	Detector::simBkg = newSimBkg;
 }

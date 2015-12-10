@@ -6,7 +6,6 @@
 
 #include <iostream>
 #include <string>
-#include <boost/shared_ptr.hpp>
 #include <eigen3/Eigen/Dense>
 #include <eigen3/unsupported/Eigen/FFT>
 #include <eigen3/unsupported/Eigen/src/NonLinearOptimization/dogleg.h>
@@ -16,7 +15,6 @@
 #include <eigen3/unsupported/Eigen/src/NonLinearOptimization/HybridNonLinearSolver.h>
 #include <vector>
 #include "Response.h"
-#include "Measurement.h"
 #include <cmath>
 #include <boost/math/special_functions/factorials.hpp>
 #include <boost/math/distributions/chi_squared.hpp>
@@ -55,11 +53,8 @@ struct FindActivityFunctor : DenseFunctor<double> {
 class Detector {
 public:
 	enum class CalcType {BEST, MEAN, WORST};
-	Detector(string bkgName, string distName, vector<string> dists, string angName, double activity, double activityUncertainty, bool He3 = false);
-	Detector(boost::shared_ptr<BaseMeasurement> bkg, vector<boost::shared_ptr<BaseMeasurement>> distMeasVec, vector<double> dists, vector<boost::shared_ptr<BaseMeasurement>> angMeasVec, vector<double> angles, double activity, double activityUncertainty);
+	Detector(BkgResponse bkg, DistResponse distResp, AngularResponse angResp, double activity);
 	Detector();
-	Detector(const Detector &det);
-	Detector operator=(const Detector &setDet);
 	~Detector();
 	void SetDistance(double distance);
 	double GetDistance() {return distance;};
@@ -87,15 +82,16 @@ public:
 	double S(const double t);
 	ArrayXd dist_f(const ArrayXd &t);
 	ArrayXd ang_f(const ArrayXd &t);
-	DistResponse distResp;
-	AngularResponse angResp;
+	
+	void SetSimBkg(double newSimBkg);
 	
 	void RandomizeParameters();
-	double GetBkg() {return bkg->GetCPS();};
 private:
-	const string dataLoc = "/Users/jonas/Documents/Forskarstuderande/Neutronartikel/Spektra/";
-	boost::shared_ptr<BaseMeasurement> bkg;
+	DistResponse distResp;
+	AngularResponse angResp;
+	BkgResponse bkg;
 	
+	double simBkg;
 	
 	double velocity;
 	

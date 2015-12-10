@@ -142,6 +142,7 @@ def MinimisePlot(x, y):
 	x = np.array(x)
 	y = np.array(y)
 	y = y / y.max()
+	np.savez("min_plot_data.npz", x, y)
 	rc('font', family='sans-serif')
 	#rc('text', usetex=True)
 	fac = 3.0
@@ -168,7 +169,7 @@ def MinimisePlot(x, y):
 										 connectionstyle="arc,angleA=0,armA=20,angleB=-90,armB=15,rad=7"),
 					)
 	pl.savefig("Minimise.pdf")
-	pl.show()
+	#pl.show()
 	return 0
 
 def ExamplePlot(x, y):
@@ -189,14 +190,12 @@ def ExamplePlot(x, y):
 	x_at_min = x[min_index]
 	min_value = y[min_index]
 	
-	ax.set_xlabel("Integration time, $\Delta t$ (s)")
-	ax.set_ylabel("Min. emission rate, A (Mn/s)")
+	ax.set_xlabel("Integration time, $\Delta t$ [s]")
+	ax.set_ylabel("Min. n emission rate, A [$10^6$s$^{-1}$]")
 	ax.axis([1.5, 10, 0.8, 1.2])
-	ax.annotate('Minimum emission rate,\nOptimal integration time', xy=(x_at_min, min_value),  xycoords='data',
-					xytext=(10, -25.0), textcoords='offset points',
-					arrowprops=dict(arrowstyle="->",
-										 connectionstyle="arc,angleA=0,armA=20,angleB=-90,armB=15,rad=7"),
-					)
+	ax.annotate('Minimum emission rate', xy=(x_at_min, min_value),  xycoords='data', xytext=(10, -16.0), textcoords='offset points', arrowprops=dict(arrowstyle="->",connectionstyle="arc,angleA=0,armA=20,angleB=-90,armB=15,rad=7"), )
+	
+	ax.annotate('Optimal integration time', xy=(x_at_min, 0.8),  xycoords='data', xytext=(10, 9.0), textcoords='offset points', arrowprops=dict(arrowstyle="->",connectionstyle="arc,angleA=0,armA=20,angleB=90,armB=15,rad=7"), )
 	pl.savefig("Example.pdf", transparent = True)
 	#pl.show()
 	return 0
@@ -210,7 +209,7 @@ def TimeDescPlot(x, y):
 	fac = 3.0
 	fig = pl.figure(figsize=(1.61803 * fac, fac))
 	ax = fig.add_subplot(111)
-	fig.subplots_adjust(left=0.065, right=0.96, bottom=0.19, top=0.97)
+	fig.subplots_adjust(left=0.067, right=0.96, bottom=0.19, top=0.97)
 	
 	axis_zeros = np.zeros(y.shape)
 	
@@ -224,13 +223,13 @@ def TimeDescPlot(x, y):
 	
 	fill1 = ax.fill_between(x[zero_index:tm_index_p], axis_zeros[zero_index:tm_index_p], y[zero_index:tm_index_p], facecolor='gray')
 	
-	used_hatch = ":"
+	used_hatch = "//"
 	fill2 = ax.fill_between(x[tm2_index_m:tm2_index_p], axis_zeros[tm2_index_m:tm2_index_p], y[tm2_index_m:tm2_index_p], color="none", hatch = used_hatch, edgecolor="k")
 	
 	ax.axis([-1.2, 1.2, None, None])
 
-	ax.set_xlabel("Time (s)")
-	ax.set_ylabel("Detector response, $S(t)$")
+	ax.set_xlabel("Time [s]")
+	ax.set_ylabel("Detector response, $S(t)$ [s$^{-1}$]")
 	#x_ticks = ["$-t_m$", "$-t_m/2$", "$0$", "$t_m/2$", "$t_m$"]
 	x_ticks = ["$-\Delta t$", "$-\Delta t/2$", "$0$", "$\Delta t/2$", "$\Delta t$"]
 	x_tick_locs = [-1, -0.5, 0, 0.5, 1.0]
