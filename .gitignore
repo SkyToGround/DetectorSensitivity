@@ -1,0 +1,7 @@
+.DS_Store
+.deps
+CMakeCache.txt
+CmakeFiles
+DetectorSim
+Makefile
+cmake_install.cmake
