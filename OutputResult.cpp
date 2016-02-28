@@ -8,7 +8,7 @@
 
 #include "OutputResult.hpp"
 
-OutputResult::OutputResult(OutputType outType, std::string fileName) : outType(outType), outStream(), firstJsonItm(false) {
+OutputResult::OutputResult(OutputType outType, std::string fileName) : outType(outType), outStream(), firstJsonItm(false), keyWidth(15) {
 	if (outType == OutputType::JSON_FILE) {
 		outStream.open(fileName);
 		//Fix me: check if stream is good
@@ -39,7 +39,7 @@ void OutputResult::StartResult() {
 }
 
 void OutputResult::CoutStartResult() {
-	std::cout << "------------------\n";
+	std::cout << "\n------------------";
 }
 
 void OutputResult::JsonStartResult() {
@@ -64,7 +64,7 @@ void OutputResult::EndResult() {
 }
 
 void OutputResult::CoutEndResult() {
-	std::cout << "------------------\n";
+	std::cout << "\n------------------\n";
 	std::cout.flush();
 }
 
@@ -82,7 +82,7 @@ void OutputResult::JsonCheckFirst() {
 }
 
 void OutputResult::CoutWrite(std::string key, std::string value) {
-	std::cout << "\n" << key << ":" << value;
+	std::cout << "\n" << std::setw(keyWidth) << key << ": " << value;
 }
 
 void OutputResult::JsonWrite(std::string key, std::string value) {
@@ -91,7 +91,7 @@ void OutputResult::JsonWrite(std::string key, std::string value) {
 }
 
 void OutputResult::CoutWrite(std::string key, double value) {
-	std::cout << "\n" << key << ":" << value;
+	std::cout << "\n" << std::setw(keyWidth) << key << ": " << value;
 }
 
 void OutputResult::JsonWrite(std::string key, double value) {
@@ -100,7 +100,7 @@ void OutputResult::JsonWrite(std::string key, double value) {
 }
 
 void OutputResult::CoutWrite(std::string key, int value) {
-	std::cout << "\n" << key << ":" << value;
+	std::cout << "\n" << std::setw(keyWidth) << key << ": " << value;
 }
 
 void OutputResult::JsonWrite(std::string key, int value) {
@@ -110,9 +110,9 @@ void OutputResult::JsonWrite(std::string key, int value) {
 
 void OutputResult::CoutWrite(std::string key, bool value) {
 	if (value) {
-		std::cout << "\n" << key << ": true";
+		std::cout << "\n" << std::setw(keyWidth) << key << ": true";
 	} else {
-		std::cout << "\n" << key << ": false";
+		std::cout << "\n" << std::setw(keyWidth) << key << ": false";
 	}
 	
 }
