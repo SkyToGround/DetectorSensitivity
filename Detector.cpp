@@ -3,10 +3,10 @@
 
 #include "Detector.h"
 
-Detector::Detector(BkgResponse bkg, DistResponse distResp, AngularResponse angResp, double activity) : bkg(bkg), distResp(distResp), angResp(angResp), distance(2.0), integrationTime(1.0), velocity(8.333), activity(activity) {
+Detector::Detector(BkgResponse bkg, DistResponse distResp, AngularResponse angResp, double edge_limit, unsigned int mean_iters) : bkg(bkg), distResp(distResp), angResp(angResp), distance(2.0), integrationTime(1.0), velocity(8.333), edge_limit(edge_limit), mean_iters(mean_iters) {
 }
 
-Detector::Detector() : bkg(), distResp(), angResp(), activity(-1.0) {
+Detector::Detector() : bkg(), distResp(), angResp() {
 	
 }
 
@@ -14,6 +14,48 @@ void Detector::RandomizeParameters() {
 	double newBkg = bkg.GetRandomizedCPS();
 	distResp.Randomize(newBkg);
 	angResp.Randomize(newBkg);
+}
+
+std::pair<double, double> Detector::GetIntegrationTimes(int m, double F) {
+	return std::pair<double, double>(integrationTime * (double(m) + F), integrationTime * (double(m) + F + 1));
+}
+
+std::vector<std::pair<double,double>> Detector::GetIntTimes(CalcType tp) {
+	std::vector<std::pair<double, double>> retVec;
+	double F = 0;
+	if (CalcType::BEST == tp) {
+		F = -0.5;
+	} else if (CalcType::WORST == tp) {
+		F = 0.0;
+	} else { //Used when calc type is MEAN and thus gives incorrect times in this case
+		F = -0.25;
+	}
+	std::pair<double,double> cTimes;
+	int m = 0, lower_m, upper_m;
+	double sigLimit = S(0.0) * edge_limit;
+	while (true) {
+		cTimes = GetIntegrationTimes(m, F);
+		if (S(cTimes.first) > sigLimit) {
+			m--;
+		} else {
+			lower_m = m;
+			break;
+		}
+	}
+	m = 0;
+	while (true) {
+		cTimes = GetIntegrationTimes(m, F);
+		if (S(cTimes.second) > sigLimit) {
+			m++;
+		} else {
+			upper_m = m;
+			break;
+		}
+	}
+	for (int y = lower_m; y <= upper_m; y++) {
+		retVec.push_back(GetIntegrationTimes(y, F));
+	}
+	return retVec;
 }
 
 Detector::~Detector() {
@@ -60,6 +102,38 @@ double Detector::S_best(const double i_time) {
 
 double Detector::S_worst(const double i_time) {
 	return Int_S(0, i_time);
+}
+
+ArrayXd Detector::S_Int(const std::vector<std::pair<double, double> > i_time) {
+	ArrayXd retArr = ArrayXd::Zero(i_time.size());
+	for (int i = 0; i < i_time.size(); i++) {
+		retArr[i] = Int_S(i_time[i].first, i_time[i].second);
+	}
+	return retArr;
+}
+
+ArrayXd Detector::S_mean(const std::vector<std::pair<double, double> > i_time) {
+	int low_m = 0, high_m = 0;
+	int tmpCtr = int(i_time.size()) - 1;
+	while (0 < tmpCtr) {
+		if (tmpCtr >= 2) {
+			high_m++;
+			low_m--;
+			tmpCtr -= 2;
+		} else if (tmpCtr >= 1) {
+			low_m--;
+			tmpCtr--;
+		}
+	}
+	
+	for (int m = low_m; m <= high_m; m++) {
+		
+	}
+	ArrayXd retArr = ArrayXd::Zero(i_time.size());
+	for (int i = 0; i < i_time.size(); i++) {
+		retArr[i] = Int_S(i_time[i].first, i_time[i].second);
+	}
+	return retArr;
 }
 
 double Detector::Int_S(const double start, const double stop) {
@@ -128,16 +202,20 @@ ArrayXd pow(const double base, const ArrayXd exponent) {
 	return ret;
 }
 
-double Detector::CriticalLimit(const double alpha) {
-	long double B = simBkg * integrationTime;
-	unsigned long long int i = 0;
-	long double res = 1.0;
+unsigned int Detector::CriticalLimitFPH(const double fph) {
+	return CriticalLimit((fph * integrationTime) / 3600.0);
+}
+
+unsigned int Detector::CriticalLimit(const double alpha) {
+	double B = simBkg * integrationTime;
+	unsigned int i = 0;
+	double res = 1.0;
 	while (res >= alpha) {
-		if (i > boost::math::max_factorial<long double>::value) {
+		if (i > boost::math::max_factorial<double>::value) {
 			cout << "Warning, reached a max factorial input of: " << i << endl;
 			goto no_factorial;
 		}
-		res = res - ((pow(B, i))*exp(-B)) / boost::math::factorial<long double>((unsigned int)i);
+		res = res - ((pow(B, i))*exp(-B)) / boost::math::factorial<double>((unsigned int)i);
 		i++;
 	}
 	return i; //Must not be i - 1 as we are integrating to C_L - 1 according to the equation
@@ -151,73 +229,75 @@ no_factorial:
 	return i; //Must not be i - 1 as we are integrating to C_L - 1 according to the equation
 }
 
-double Detector::CalcBoundaryTime(double alpha, int k) {
-	boost::math::chi_squared dist(2*(k+1));
-	return (boost::math::quantile(dist, 1 - alpha) / 2.0) / simBkg; //bkg.GetCPS() replaced with simBkg
-}
-
 void Detector::SetVelocity(double velocity) {
 	Detector::velocity = velocity;
 }
 
-double Detector::CalcSignal(CalcType tp) {
-	double sig;
+ArrayXd Detector::CalcSignal(double useAct, CalcType tp) {
+	ArrayXd sig;
+	std::vector<std::pair<double, double>> intTimes = GetIntTimes(tp);
 	if (tp == CalcType::MEAN) {
-		sig = S_mean(integrationTime);
+		sig = S_mean(intTimes);
 	} else if (tp == CalcType::WORST) {
-		sig = S_worst(integrationTime);
+		sig = S_Int(intTimes);
 	} else {
-		sig = S_best(integrationTime);
+		sig = S_Int(intTimes);
 	}
 	double B = simBkg * integrationTime;
-	return B + sig * activity;
+	return B + sig * useAct;
 }
 
-double Detector::CalcTruePositiveProb(double alpha, double i_time, CalcType tp) {
-	double sig;
+
+//Should yield the same result as FindActivityFunctor
+double Detector::CalcTruePositiveProb(double alpha, double testAct, CalcType tp) {
+	ArrayXd sig;
+	std::vector<std::pair<double, double>> intTimes = GetIntTimes(tp);
 	if (tp == CalcType::MEAN) {
-		sig = S_mean(i_time);
+		sig = S_mean(intTimes);
 	} else if (tp == CalcType::WORST) {
-		sig = S_worst(i_time);
+		sig = S_Int(intTimes);
 	} else {
-		sig = S_best(i_time);
+		sig = S_Int(intTimes);
 	}
 	
-	int critical_limit = int(CriticalLimit(alpha));
+	int critical_limit = CriticalLimit(alpha);
 	
 	
-	double B = simBkg * i_time; // bkg.GetCPS() replaced with simBkg
-	double total = B + sig * activity;
-	
-	long double res = 1.0;
-	for (int j = 0; j <= critical_limit; j++) {
-		if (j > boost::math::max_factorial<long double>::value) {
-			cout << "Warning, reached a max factorial input of: " << j << endl;
-			goto no_factorial2;
+	double B = simBkg * integrationTime;
+	ArrayXd total = B + sig * testAct;
+	ArrayXd res = ArrayXd::Ones(total.size());
+	for (int y = 0; y < total.size(); y++) {
+		for (int j = 0; j <= critical_limit - 1; j++) {
+			if (j > boost::math::max_factorial<double>::value) {
+				cout << "Warning, reached a max factorial input of: " << j << endl;
+				goto no_factorial2;
+			}
+			res[y] -= ((pow(total[y], j))*exp(-total[y])) / boost::math::factorial<double>((unsigned int)j);
 		}
-		res -= ((pow(total, j))*exp(-total)) / boost::math::factorial<long double>((unsigned int)j);
-	}
-	return res;
+		if (false) {
 no_factorial2:
-	res = 1.0;
-	for (int k = 0; k <= critical_limit; k++) {
-		res -= gauss(k, total);
+			res[y] = 1.0;
+			for (int k = 0; k <= critical_limit - 1; k++) {
+				res[y] -= gauss(k, total[y]);
+			}
+		}
 	}
-	return res; //Fix me, double check for off by one errors!
+	return 1.0 - (1.0 -res).prod();
 }
 
 double Detector::CalcActivity(double alpha, double beta, CalcType tp) {
-	double sig;
+	std::vector<std::pair<double, double>> intTimes = GetIntTimes(tp);
+	ArrayXd sig;
 	if (tp == CalcType::MEAN) {
-		sig = S_mean(integrationTime);
+		sig = S_mean(intTimes);
 	} else if (tp == CalcType::WORST) {
-		sig = S_worst(integrationTime);
+		sig = S_Int(intTimes);
 	} else {
-		sig = S_best(integrationTime);
+		sig = S_Int(intTimes);
 	}
-	double critical_limit = CriticalLimit(alpha);
+	unsigned int critical_limit = CriticalLimit(alpha);
 	
-	FindActivityFunctor functor(sig, simBkg * integrationTime, critical_limit, beta); // bkg.GetCPS() replaced with simBkg
+	FindActivityFunctor functor(sig, simBkg * integrationTime, critical_limit, beta);
 	
 	VectorXd p(1);
 	VectorXd res(1);
@@ -269,29 +349,6 @@ double Detector::CalcActivity(double alpha, double beta, CalcType tp) {
 	}
 	
 	return p[0];
-}
-
-void Detector::CalcActivityLimits(double alpha, double beta, CalcType tp, ArrayXd &x, ArrayXd &y) {
-	double sig;
-	if (tp == CalcType::MEAN) {
-		sig = S_mean(integrationTime);
-	} else if (tp == CalcType::WORST) {
-		sig = S_worst(integrationTime);
-	} else {
-		sig = S_best(integrationTime);
-	}
-	double critical_limit = CriticalLimit(alpha);
-	FindActivityFunctor functor(sig, simBkg * integrationTime, critical_limit, beta); //bkg.GetCPS() replaced by simBkg
-	
-	x = ArrayXd::LinSpaced(1000, 0.01, 2500);
-	y = ArrayXd::Zero(1000);
-	VectorXd out(1);
-	VectorXd in(1);
-	for (int i = 0; i < 1000; i++) {
-		in[0] = x[i];
-		functor(in, out);
-		y[i] = out[0];
-	}
 }
 
 void Detector::SetSimBkg(double newSimBkg) {
