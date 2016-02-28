@@ -11,9 +11,9 @@ The following libraries are needed to compile the code:
 In addition, CMake (version >= 3.1.0) is required to create the make-file.
 
 ##Compiling
--Change directory to the source code directory (which contains the "CMakeLists.txt" file).
--Run CMake:
+* Change directory to the source code directory (which contains the "CMakeLists.txt" file).
+* Run CMake:
 	CMake .
--Then compile the application:
+* Then compile the application:
 	make
--When the application is compiled, you will find an executable in the current directory.
+* When the application is compiled, you will find an executable in the current directory.
