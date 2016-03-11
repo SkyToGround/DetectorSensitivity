@@ -18,6 +18,8 @@
 #include <cmath>
 #include <boost/math/special_functions/factorials.hpp>
 #include <boost/math/distributions/chi_squared.hpp>
+#include <boost/random.hpp>
+#include <queue>
 
 using namespace std;
 using namespace Eigen;
@@ -26,46 +28,6 @@ double gauss(const double x, const double mu);
 ArrayXd gauss(const ArrayXd x, const double mu);
 ArrayXd factorial(const ArrayXi f);
 ArrayXd pow(const double base, const ArrayXd exponent);
-
-struct FindActivityFunctor : DenseFunctor<double> {
-	ArrayXd S;
-	double B;
-	unsigned int C_L;
-	double beta;
-	FindActivityFunctor(ArrayXd S, double B, unsigned int C_L, double beta) : DenseFunctor<double> (1, 1), S(S), B(B), C_L(C_L), beta(beta) {
-		
-	}
-	
-	//Should yield the same result as CalcTruePositiveProb
-	int operator()(const VectorXd &p, VectorXd &res) const {
-		double M = p[0];
-		ArrayXd tot = S * M + B;
-		res = VectorXd(1);
-		ArrayXi i = ArrayXi::LinSpaced(C_L, 0, C_L - 1);
-		ArrayXd tgt = ArrayXd::Zero(tot.size());
-		for (int j = 0; j < tot.size(); j++) {
-			if (C_L >= boost::math::max_factorial<double>::value) {
-				tgt[j] = gauss(i.cast<double>(), tot[j]).sum();
-			} else {
-				tgt[j] = exp(-tot[j])*(pow(tot[j], i.cast<double>())/factorial(i)).sum();
-			}
-		}
-		res[0] = tgt.prod() - beta;
-		return 0;
-	}
-//	int operator()(const VectorXd &p, VectorXd &res) const {
-//		double M = p[0];
-//		ArrayXd tot = S * M + B;
-//		res = VectorXd(1);
-//		ArrayXi i = ArrayXi::LinSpaced(C_L, 0, C_L - 1);
-//		if (C_L >= boost::math::max_factorial<double>::value) {
-//			res[0] = gauss(i.cast<double>(), tot).sum() - beta;
-//		} else {
-//			res[0] = exp(-tot)*(pow(tot, i.cast<double>())/factorial(i)).sum() - beta;
-//		}
-//		return 0;
-//	}
-};
 
 class Detector {
 public:
@@ -93,9 +55,34 @@ public:
 	ArrayXd S_mean(const std::vector<std::pair<double,double>> i_time);
 	void SetVelocity(double velocity);
 	double GetVelocity() {return velocity;};
+	
+	/*! Find the critical limit in number of pulses based on a given acceptable false positive rate. This function calls Detector::CriticalLimit(). Note that if the critical limit for list mode measurements are to be calculated, use Detector::CriticalLimitLM_FPH() instead.
+	 \param fph Number of acceptable false positives per hour. Does not have to be an integer but has to be a number greater than 0.
+	 \return The critical limit. Note that the actual false positive rate might be lower than the one given as a parameter.
+	 */
 	unsigned int CriticalLimitFPH(const double fph);
+	
+	/*! Version of Detector::CriticalLimitFPH() for list mode calculations. Calls Detector::CrticalLimitLM().
+	 \param fph Number of acceptable false positives per hour. Does not have to be an integer but has to be a number greater than 0.
+	 \return The critical limit. Note that the actual false positive rate might be lower than the one given as a parameter.
+	 */
+	unsigned int CriticalLimitLM_FPH(const double fph);
+	
+	/*! Find the critical limit in number of pulses based on a given false positive probability (alpha). The critcial limit is calculated using the poisson distribution for small values of the critical limit and the normal distribution for large values of the critical limit. Note that if the critical limit for list mode measurements are to be calculated, use Detector::CriticalLimitLM() instead.
+	 \param alpha The acceptable false positive probability.
+	 \return The critical limit. Note that the actual false positive probability might be lower than the one given as a parameter though it will never be higher.
+	 */
 	unsigned int CriticalLimit(const double alpha);
 	
+	/*! Version of Detector::CriticalLimit() for use with list mode calculations.
+	 \param alpha The acceptable false positive probability.
+	 \return The critical limit. Note that the actual false positive probability might be lower than the one given as a parameter though it will never be higher.
+	 */
+	unsigned int CriticalLimitLM(const double alpha);
+	
+	/*! Returns the integration periods used in the calculation. If the input paramter is CalcType::MEAN, the function will return 
+	 
+	 */
 	std::vector<std::pair<double,double>> GetIntTimes(CalcType tp);
 	
 	/*! Calculate the minimum detectable activity using the current detector settings and probabilities.
@@ -107,10 +94,18 @@ public:
 	 */
 	double CalcActivity(double alpha, double beta, CalcType tp);
 	
-	/*! The mean number of pulses in the relevant integration periods for a specific set of measurement parameters.
+	/*! Exactly the same as Detector::CalcActivity() except this function takes an acceptable false positive probability as input instead of alpha.
+	 \param fph Acceptable number of false positives per hour.
+	 \param beta The probability of finding the source.
+	 \param tp The type of integration to be used.
+	 \return The minimum required activity to find the source.
+	 */
+	double CalcActivityFPH(double fph, double beta, CalcType tp);
+	
+	/*! The mean number of pulses in the relevant integration periods for a specific set of measurement parameters. If the calculation type is CalcType::LIST_MODE, the result is the mean maximum number of pulses between the two times given by Detector::GetIntTimes().
 	 \param useAct The activity of the source measured.
 	 \param tp The type of integration used.
-	 \return The mean number of pulses expected.
+	 \return The mean number or maximum mean number of pulses expected.
 	 */
 	ArrayXd CalcSignal(double useAct, CalcType tp);
 	
@@ -141,6 +136,7 @@ private:
 	double distance;
 	
 	double edge_limit;
+	double startTime, stopTime;
 	
 	unsigned int mean_iters;
 	
@@ -150,6 +146,46 @@ private:
 	ArrayXd S_m(const ArrayXd &t, const double i_time);
 	double Int_S(const double start, const double stop);
 	std::pair<double,double> GetIntegrationTimes(int m, double F);
+	
+	/*! Poisson probability distribution function.
+	 \param n Index.
+	 \param mu Expected value.
+	 \return Probability.
+	 */
+	double p_mu(const unsigned int n, const double mu);
+	
+	/*! Poisson cumulative probability function.
+	 \param n Index.
+	 \param mu Expected value.
+	 \return Cumulative probability.
+	 */
+	double P_mu(const unsigned int n, const double mu);
+	
+	/*! Cumulative probablity function of max value of scanning process.
+	 \param n The tested value.
+	 \return The probability that the max value in the scan is equal to or less than n.
+	 */
+	double F_N(unsigned int n);
+	
+	/*! List mode version of Detector::CalcActivity(). Called by Detector::CalcActivity().
+	 \param alpha False positive probability per hour.
+	 \param beta False negative probability.
+	 \return Minimum detectable activity.
+	 */
+	double CalcActivityLM(double alpha, double beta);
+	
+	/*! Calculates the false negative probability in list mode measurements using simulations.
+	 \param actFac The factor which modifies the amplitude of the source response curve.
+	 \param critical_limit The limit used to decide if the source was detected or not.
+	 \param iterations The number of iterations used when running the simulation.
+	 \return The probability of not detecting a radioactive source which is present.
+	 */
+	double SimMeasurements(double actFac, unsigned int critical_limit, unsigned int iterations);
+	
+	/* Uses binary search to find the time limits used in list mode simulations.
+	 */
+	void CalcStartStopLM();
+	friend struct FindActivityFunctorLM;
 };
 
 #endif /* defined(__NeutronDetectorSim__Detector__) */

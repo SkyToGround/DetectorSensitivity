@@ -89,9 +89,8 @@ int CalcThread::CalcTimeVsActData(CalcInfo &info) {
 	
 	ArrayXd testTimes = ArrayXd::LinSpaced(info.steps, info.start_time, info.stop_time);
 	for (int u = 0; u < testTimes.size(); u++) {
-		double alpha = (info.fpPerHour * testTimes[u]) / 3600.0;
 		info.det.SetIntegrationTime(testTimes[u]);
-		double act = info.det.CalcActivity(alpha, info.beta, info.cType);
+		double act = info.det.CalcActivityFPH(info.fpPerHour, info.beta, info.cType);
 		timeActVec.push_back(std::pair<double, double>(testTimes[u], act));
 	}
 	struct c_sorter
@@ -248,9 +247,8 @@ void FindLocalMinima(CalcInfo &info, int target_C_L, double &iTime, double &minM
 	double upper_time = iTime + maxTimeDiff * 2; //To assist the algorithm slightly, we add the maximum time diff
 	double lower_time = 0.0;
 	
-	double alpha;
-	
 	//Find where we have C_L = target_C_L
+	//This is done by stepping up and down in integration time until C_L = target_C_L
 	int current_C_L;
 	do {
 		info.det.SetIntegrationTime(upper_time);
@@ -266,13 +264,15 @@ void FindLocalMinima(CalcInfo &info, int target_C_L, double &iTime, double &minM
 	
 	lower_time = upper_time; //This is now or minimum time
 	
-	//Find some integration time where C_L > 1
+	//Find some integration time where C_L > target_C_L
+	//This is needed in order for the algorithm to do a binary search in the later stages of the algorithm
 	do {
 		upper_time *= 2.0; //Potentially fix me, probably a bit to radical to double the upper time
 		info.det.SetIntegrationTime(upper_time);
 	} while (info.det.CriticalLimitFPH(info.fpPerHour) == target_C_L);
 	
 	//Now do the actual minima-finding part
+	//This is done by moving the upper and lower time limits closer to each other which results in the algorithm closing in on when target_C_L becomes target_C_L + 1
 	double c_time;
 	while (upper_time - lower_time > maxTimeDiff) {
 		c_time = (upper_time - lower_time) / 2.0 + lower_time;
@@ -284,8 +284,8 @@ void FindLocalMinima(CalcInfo &info, int target_C_L, double &iTime, double &minM
 			upper_time = c_time;
 		}
 	}
+	//The actual integration time is the lower one as we really want C_L = target_C_L
 	iTime = lower_time;
-	alpha = (info.fpPerHour * iTime) / 3600.0;
 	info.det.SetIntegrationTime(iTime);
-	minM = info.det.CalcActivity(alpha, info.beta, info.cType);
+	minM = info.det.CalcActivityFPH(info.fpPerHour, info.beta, info.cType);
 }

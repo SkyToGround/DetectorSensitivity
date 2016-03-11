@@ -1,9 +1,5 @@
 //
 //  OutputResult.cpp
-//  MobileDetectorSim
-//
-//  Created by Jonas Nilsson on 2016-02-28.
-//  Copyright © 2016 Jonas Nilsson. All rights reserved.
 //
 
 #include "OutputResult.hpp"
@@ -193,14 +189,3 @@ void OutputResult::JsonWrite(std::string key, std::vector<std::pair<double, doub
 	}
 	outStream << "]";
 }
-
-//void OutputResult::WriteB(const std::string &key, const bool &value) {
-//	switch (outType) {
-//		case OutputType::SCREEN:
-//			CoutWriteB(key, value);
-//			break;
-//		case OutputType::JSON_FILE:
-//			JsonWriteB(key, value);
-//			break;
-//	}
-//};

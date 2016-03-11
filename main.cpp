@@ -123,6 +123,8 @@ int main(int argc, const char * argv[])
 				cTypes.push_back(Detector::CalcType::WORST);
 			} else if (calcs[y] == std::string("best")) {
 				cTypes.push_back(Detector::CalcType::BEST);
+			} else if (calcs[y] == std::string("list")) {
+				cTypes.push_back(Detector::CalcType::LIST_MODE);
 			} else {
 				cout << "Unknown calculation type \"" << calcs[y] << "\"." << endl;
 				return 0;

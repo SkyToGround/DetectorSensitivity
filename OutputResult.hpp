@@ -1,9 +1,5 @@
 //
 //  OutputResult.hpp
-//  MobileDetectorSim
-//
-//  Created by Jonas Nilsson on 2016-02-28.
-//  Copyright © 2016 Jonas Nilsson. All rights reserved.
 //
 
 #ifndef OutputResult_hpp
@@ -36,7 +32,6 @@ public:
 				break;
 		}
 	};
-	//void WriteB(const std::string &key, const bool &value);
 private:
 	OutputType outType;
 	unsigned int keyWidth;

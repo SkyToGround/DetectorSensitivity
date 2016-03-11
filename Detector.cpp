@@ -2,8 +2,10 @@
 //  Detector.cpp
 
 #include "Detector.h"
+#include "Functors.h"
 
 Detector::Detector(BkgResponse bkg, DistResponse distResp, AngularResponse angResp, double edge_limit, unsigned int mean_iters) : bkg(bkg), distResp(distResp), angResp(angResp), distance(2.0), integrationTime(1.0), velocity(8.333), edge_limit(edge_limit), mean_iters(mean_iters) {
+	CalcStartStopLM();
 }
 
 Detector::Detector() : bkg(), distResp(), angResp() {
@@ -23,7 +25,10 @@ std::pair<double, double> Detector::GetIntegrationTimes(int m, double F) {
 std::vector<std::pair<double,double>> Detector::GetIntTimes(CalcType tp) {
 	std::vector<std::pair<double, double>> retVec;
 	double F = 0;
-	if (CalcType::BEST == tp) {
+	if (CalcType::LIST_MODE == tp) {
+		retVec.push_back(std::pair<double, double>(startTime, stopTime));
+		return retVec;
+	} else if (CalcType::BEST == tp) {
 		F = -0.5;
 	} else if (CalcType::WORST == tp) {
 		F = 0.0;
@@ -229,6 +234,19 @@ no_factorial:
 	return i; //Must not be i - 1 as we are integrating to C_L - 1 according to the equation
 }
 
+unsigned int Detector::CriticalLimitLM_FPH(const double fph) {
+	double alpha = 1.0 - exp(-fph);
+	return CriticalLimitLM(alpha);
+}
+
+unsigned int Detector::CriticalLimitLM(const double alpha) {
+	int i = int(simBkg * integrationTime + 0.5);
+	while (1.0 - F_N(i) > alpha) {
+		i++;
+	}
+	return i;
+}
+
 void Detector::SetVelocity(double velocity) {
 	Detector::velocity = velocity;
 }
@@ -285,10 +303,19 @@ no_factorial2:
 	return 1.0 - (1.0 -res).prod();
 }
 
+double Detector::CalcActivityFPH(double fph, double beta, Detector::CalcType tp) {
+	if (CalcType::LIST_MODE == tp) {
+		return CalcActivity(1.0 - exp(-fph), beta, tp);
+	}
+	return CalcActivity((fph * integrationTime) / 3600.0, beta, tp);
+}
+
 double Detector::CalcActivity(double alpha, double beta, CalcType tp) {
 	std::vector<std::pair<double, double>> intTimes = GetIntTimes(tp);
 	ArrayXd sig;
-	if (tp == CalcType::MEAN) {
+	if (CalcType::LIST_MODE == tp) {
+		return CalcActivityLM(alpha, beta);
+	} else if (tp == CalcType::MEAN) {
 		sig = S_mean(intTimes);
 	} else if (tp == CalcType::WORST) {
 		sig = S_Int(intTimes);
@@ -341,16 +368,167 @@ double Detector::CalcActivity(double alpha, double beta, CalcType tp) {
 	HybridNonLinearSolver<FindActivityFunctor> solver(functor);
 	solver.hybrd1(p);
 	
-	//calculate final value and double check that it is close to 0
-	functor(p, res);
+	return p[0];
+}
+
+double Detector::CalcActivityLM(double alpha, double beta) {
+	unsigned int critical_limit = CriticalLimitLM(alpha);
 	
-	if (abs(res[0]) > 0.01) {
-		cout << "Failed to find 0!" << endl;
+	unsigned int simIters = 2000; //Fix me: should probably make it so it can be modified
+	FindActivityFunctorLM functor(this, critical_limit, beta, simIters);
+	
+	VectorXd p(1);
+	VectorXd res(1);
+	
+	//We want to find a starting value that is close to our solution
+	//Fix me: are these searches really needed? (they probably are)
+	double low = 0.0001;
+	double upp = 0.0;
+	double adder = 0.0001;
+	
+	//The probability limits to use.
+	//Could maybe be modified slightly
+	double negativeLimit = -beta / 2.0;
+	double positiveLimit = (1.0 - beta) / 2.0;
+	res[0] = positiveLimit; //We dont want to add to the value of low on the first loop
+	//First locate where we go to negative values
+	while(res[0] > negativeLimit) {
+		upp = low + adder;
+		p[0] = upp;
+		functor(p, res);
+		if (res[0] > positiveLimit) {
+			low = low + adder;
+		}
+		adder *= 10.0;
 	}
+	
+	double testPoint = low + (upp - low) / 2.0;
+	p[0] = testPoint;
+	functor(p, res);
+	// Now locate where the function falls within the positive and negative limit
+	while (res[0] < negativeLimit or res[0] > positiveLimit) {
+		if (res[0] >= positiveLimit) {
+			low = testPoint;
+		} else {
+			upp = testPoint;
+		}
+		testPoint = low + (upp - low) / 2.0;
+		p[0] = testPoint;
+		functor(p, res);
+	}
+	
+	p.setConstant(1, testPoint);
+	
+	// do the computation
+	HybridNonLinearSolver<FindActivityFunctorLM> solver(functor);
+	solver.hybrd1(p);
 	
 	return p[0];
 }
 
 void Detector::SetSimBkg(double newSimBkg) {
 	Detector::simBkg = newSimBkg;
+}
+
+double Detector::p_mu(const unsigned int n, const double mu) {
+	return (exp(-mu) * pow(mu, n)) / boost::math::factorial<double>(n);
+}
+
+double Detector::P_mu(const unsigned int n, const double mu) {
+	double tempRes = 0;
+	for (int i = 0; i <= n; i++) {
+		tempRes += pow(mu, n) / boost::math::factorial<double>(n);
+	}
+	return exp(-mu) * tempRes;
+}
+
+double Detector::F_N(unsigned int n) {
+	const double totalTime = 3600.0;
+	double sup_part = (1.0 - (simBkg * integrationTime) / (n + 1.0)) * simBkg * (totalTime - integrationTime) * p_mu(n, simBkg * integrationTime);
+	return P_mu(n, simBkg * integrationTime) * exp(-sup_part);
+}
+
+double Detector::SimMeasurements(double actFac, unsigned int critical_limit, unsigned int iterations) {
+	unsigned int truePositiveProb = 0;
+	double maxRate = S(0.0) * actFac + simBkg;
+	
+	std::time_t now = std::time(0);
+	boost::random::mt19937 gen{static_cast<std::uint32_t>(now)};
+	boost::random::exponential_distribution<> expDist(maxRate);
+	boost::random::uniform_real_distribution<> rejectDist(0, maxRate);
+	
+	double cTime, pTime;
+	
+	//Fix me: do I really need cCount? Maybe queue::size() is fast enough?
+	//This code should be profiled, boost::circular_buffer might be faster
+	unsigned int cCount, maxValue = 0;
+	std::queue<double> eventQueue;
+	for (int i = 0; i < iterations; i++) {
+		maxValue = 0;
+		cTime = startTime + expDist(gen);
+		eventQueue = std::queue<double>(); //Clear the queue
+		cCount = 0;
+		do {
+			if (rejectDist(gen) <= S(cTime) * actFac + simBkg) {
+				eventQueue.push(cTime);
+				cCount++;
+				pTime = cTime - integrationTime;
+				while (eventQueue.front() < pTime) {
+					cCount--;
+					eventQueue.pop();
+				}
+				if (cCount > maxValue) {
+					maxValue = cCount;
+				}
+			}
+			cTime += expDist(gen);
+		} while (cTime < stopTime);
+		if (maxValue >= critical_limit) {
+			truePositiveProb++;
+		}
+	}
+	return 1.0 - double(truePositiveProb) / double(iterations);
+}
+
+void Detector::CalcStartStopLM() {
+	double tgtVal = S(0.0) * edge_limit;
+	const double maxTimeStep = 0.000001;
+	
+	//Find the start time
+	double lowerTime = -2.0;
+	double upperTime = 0.0;
+	double middleTime, middleVal, lowerVal, upperVal;
+	while (upperTime - lowerTime > maxTimeStep) {
+		lowerVal = S(lowerTime);
+		middleTime = lowerTime + (upperTime - lowerTime) / 2.0;
+		middleVal = S(middleTime);
+		if	(lowerVal > tgtVal) {
+			lowerTime *= 2.0;
+		}
+		if (middleVal < tgtVal) {
+			lowerTime = middleTime;
+		} else if (middleVal > tgtVal) {
+			upperTime = middleTime;
+		}
+	}
+	startTime = lowerTime;
+	
+	//Find the stop time
+	lowerTime = 0.0;
+	upperTime = 2.0;
+	while (upperTime - lowerTime > maxTimeStep) {
+		upperVal = S(upperTime);
+		middleTime = lowerTime + (upperTime - lowerTime) / 2.0;
+		middleVal = S(middleTime);
+		if (upperVal > tgtVal) {
+			upperTime *= 2.0;
+		}
+		
+		if (middleVal < tgtVal) {
+			upperTime = middleTime;
+		} else if (middleVal > tgtVal) {
+			lowerTime = middleTime;
+		}
+	}
+	stopTime = upperTime;
 }
