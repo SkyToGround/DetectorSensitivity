@@ -4,7 +4,7 @@
 #include "Detector.h"
 #include "Functors.h"
 
-Detector::Detector(BkgResponse bkg, DistResponse distResp, AngularResponse angResp, double edge_limit, unsigned int mean_iters) : bkg(bkg), distResp(distResp), angResp(angResp), distance(2.0), integrationTime(1.0), velocity(8.333), edge_limit(edge_limit), mean_iters(mean_iters) {
+Detector::Detector(BkgResponse bkg, DistResponse distResp, AngularResponse angResp, double edge_limit, unsigned int mean_iters, unsigned int sim_iters) : bkg(bkg), distResp(distResp), angResp(angResp), distance(2.0), integrationTime(1.0), velocity(8.333), edge_limit(edge_limit), mean_iters(mean_iters), sim_iters(sim_iters) {
 	CalcStartStopLM();
 }
 
@@ -207,7 +207,10 @@ ArrayXd pow(const double base, const ArrayXd exponent) {
 	return ret;
 }
 
-unsigned int Detector::CriticalLimitFPH(const double fph) {
+unsigned int Detector::CriticalLimitFPH(const double fph, CalcType tp) {
+	if (CalcType::LIST_MODE == tp) {
+		return CriticalLimitLM_FPH(fph);
+	}
 	return CriticalLimit((fph * integrationTime) / 3600.0);
 }
 
@@ -252,6 +255,13 @@ void Detector::SetVelocity(double velocity) {
 }
 
 ArrayXd Detector::CalcSignal(double useAct, CalcType tp) {
+	if (CalcType::LIST_MODE == tp) {
+		double retMeanMax;
+		SimMeasurements(useAct, 0, sim_iters, retMeanMax);
+		ArrayXd retArr;
+		retArr << retMeanMax;
+		return retArr;
+	}
 	ArrayXd sig;
 	std::vector<std::pair<double, double>> intTimes = GetIntTimes(tp);
 	if (tp == CalcType::MEAN) {
@@ -267,7 +277,8 @@ ArrayXd Detector::CalcSignal(double useAct, CalcType tp) {
 
 
 //Should yield the same result as FindActivityFunctor
-double Detector::CalcTruePositiveProb(double alpha, double testAct, CalcType tp) {
+double Detector::CalcTruePositiveProbFPH(double fph, double testAct, CalcType tp) {
+	
 	ArrayXd sig;
 	std::vector<std::pair<double, double>> intTimes = GetIntTimes(tp);
 	if (tp == CalcType::MEAN) {
@@ -278,8 +289,12 @@ double Detector::CalcTruePositiveProb(double alpha, double testAct, CalcType tp)
 		sig = S_Int(intTimes);
 	}
 	
-	int critical_limit = CriticalLimit(alpha);
-	
+	int critical_limit = CriticalLimitFPH(fph, tp);
+	if (CalcType::LIST_MODE == tp) {
+		double tempVal;
+		double prob =SimMeasurements(testAct, critical_limit, sim_iters, tempVal);
+		return 1.0 - prob;
+	}
 	
 	double B = simBkg * integrationTime;
 	ArrayXd total = B + sig * testAct;
@@ -374,55 +389,39 @@ double Detector::CalcActivity(double alpha, double beta, CalcType tp) {
 double Detector::CalcActivityLM(double alpha, double beta) {
 	unsigned int critical_limit = CriticalLimitLM(alpha);
 	
-	unsigned int simIters = 2000; //Fix me: should probably make it so it can be modified
-	FindActivityFunctorLM functor(this, critical_limit, beta, simIters);
+	FindActivityFunctorLM functor(this, critical_limit, beta, sim_iters);
 	
 	VectorXd p(1);
 	VectorXd res(1);
 	
 	//We want to find a starting value that is close to our solution
 	//Fix me: are these searches really needed? (they probably are)
-	double low = 0.0001;
-	double upp = 0.0;
+	double high = 0.0;
+	double low = 0.0;
 	double adder = 0.0001;
 	
-	//The probability limits to use.
-	//Could maybe be modified slightly
-	double negativeLimit = -beta / 2.0;
-	double positiveLimit = (1.0 - beta) / 2.0;
-	res[0] = positiveLimit; //We dont want to add to the value of low on the first loop
-	//First locate where we go to negative values
-	while(res[0] > negativeLimit) {
-		upp = low + adder;
-		p[0] = upp;
-		functor(p, res);
-		if (res[0] > positiveLimit) {
-			low = low + adder;
-		}
-		adder *= 10.0;
-	}
+	double diffLimit = 0.0001;
 	
-	double testPoint = low + (upp - low) / 2.0;
-	p[0] = testPoint;
-	functor(p, res);
-	// Now locate where the function falls within the positive and negative limit
-	while (res[0] < negativeLimit or res[0] > positiveLimit) {
-		if (res[0] >= positiveLimit) {
-			low = testPoint;
-		} else {
-			upp = testPoint;
-		}
-		testPoint = low + (upp - low) / 2.0;
+	do {
+		high = high + adder;
+		p[0] = high;
+		functor(p, res);
+		adder *= 10.0;
+	} while (res[0] > 0.0);
+	
+	
+	double testPoint;
+
+	do {
+		testPoint = low + (high - low) / 2.0;
 		p[0] = testPoint;
 		functor(p, res);
-	}
-	
-	p.setConstant(1, testPoint);
-	
-	// do the computation
-	HybridNonLinearSolver<FindActivityFunctorLM> solver(functor);
-	solver.hybrd1(p);
-	
+		if (res[0] < 0) {
+			high = testPoint;
+		} else {
+			low = testPoint;
+		}
+	} while (high - low > diffLimit);
 	return p[0];
 }
 
@@ -437,7 +436,7 @@ double Detector::p_mu(const unsigned int n, const double mu) {
 double Detector::P_mu(const unsigned int n, const double mu) {
 	double tempRes = 0;
 	for (int i = 0; i <= n; i++) {
-		tempRes += pow(mu, n) / boost::math::factorial<double>(n);
+		tempRes += pow(mu, i) / boost::math::factorial<double>(i);
 	}
 	return exp(-mu) * tempRes;
 }
@@ -445,10 +444,10 @@ double Detector::P_mu(const unsigned int n, const double mu) {
 double Detector::F_N(unsigned int n) {
 	const double totalTime = 3600.0;
 	double sup_part = (1.0 - (simBkg * integrationTime) / (n + 1.0)) * simBkg * (totalTime - integrationTime) * p_mu(n, simBkg * integrationTime);
-	return P_mu(n, simBkg * integrationTime) * exp(-sup_part);
+	return  P_mu(n, simBkg * integrationTime) * exp(-sup_part);
 }
 
-double Detector::SimMeasurements(double actFac, unsigned int critical_limit, unsigned int iterations) {
+double Detector::SimMeasurements(double actFac, unsigned int critical_limit, unsigned int iterations, double &meanMax) {
 	unsigned int truePositiveProb = 0;
 	double maxRate = S(0.0) * actFac + simBkg;
 	
@@ -463,6 +462,7 @@ double Detector::SimMeasurements(double actFac, unsigned int critical_limit, uns
 	//This code should be profiled, boost::circular_buffer might be faster
 	unsigned int cCount, maxValue = 0;
 	std::queue<double> eventQueue;
+	unsigned int sumMax; //Used to calculate the mean max
 	for (int i = 0; i < iterations; i++) {
 		maxValue = 0;
 		cTime = startTime + expDist(gen);
@@ -477,6 +477,7 @@ double Detector::SimMeasurements(double actFac, unsigned int critical_limit, uns
 					cCount--;
 					eventQueue.pop();
 				}
+				sumMax += cCount;
 				if (cCount > maxValue) {
 					maxValue = cCount;
 				}
@@ -487,6 +488,7 @@ double Detector::SimMeasurements(double actFac, unsigned int critical_limit, uns
 			truePositiveProb++;
 		}
 	}
+	meanMax = double(sumMax) / double(iterations);
 	return 1.0 - double(truePositiveProb) / double(iterations);
 }
 

@@ -51,6 +51,7 @@ int main(int argc, const char * argv[])
 	("mean_iters", po::value<unsigned int>()->default_value(100), "When performing calculations of type 'mean'; how many different time alignments should be tested in order to calculate the mean value? Defaults to 100.")
 	("act_vs_time", po::value<std::string>(), "Create detection limit as a function of integration time data. Arguments must be of the form: \"start_time:stop_time:steps\". If this option is used, use of the \"output\" argument is strongly recommended. See manual and example files for more information.")
 	("integration_time", po::value<std::vector<double> >()->multitoken(), "Set a fixed integration time and calculate minimum detectable activity from that parameter. Can take multiple values. Do not use together with the \"act_vs_time\" argument. Must be greater than 0.")
+	("sim_iters", po::value<unsigned int>()->default_value(500000), "When performing calculations on list mode measurements, how many iterations should be used to calculate the probability of detecting a source. Default value is 20000.")
 	;
 	
 	po::options_description cmd_line;
@@ -275,7 +276,7 @@ int main(int argc, const char * argv[])
 	
 	unsigned int mean_iters = vm["mean_iters"].as<unsigned int>();
 	if (mean_iters == 0) {
-		cout << "The number of iterations for calculatign the mean must be greater than 0." << endl;
+		cout << "The number of iterations for calculating the mean must be greater than 0." << endl;
 		return 0;
 	}
 	bool plotCalc = false;
@@ -307,6 +308,12 @@ int main(int argc, const char * argv[])
 		cout << "Can not use argument \"integration_time\" and \"act_vs_time\". Ignoring \"integration_time\"." << endl;
 	}
 	
+	unsigned int sim_iters = vm["sim_iters"].as<unsigned int>();
+	if (mean_iters == 0) {
+		cout << "The number of simulation iterations must be greater than 0." << endl;
+		return 0;
+	}
+	
 	OutputResult::OutputType outDev = OutputResult::OutputType::SCREEN;
 	if (output_file.size() != 0) {
 		outDev = OutputResult::OutputType::JSON_FILE;
@@ -314,7 +321,7 @@ int main(int argc, const char * argv[])
 	
 	
 	CalcCoordinator calc(outDev, output_file);
-	Detector det(calBkg, distResp, angResp, curve_limit, mean_iters);
+	Detector det(calBkg, distResp, angResp, curve_limit, mean_iters, sim_iters);
 	
 	for (int a = 0; a < dists.size(); a++) {
 		det.SetDistance(dists[a]);

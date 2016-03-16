@@ -32,7 +32,7 @@ ArrayXd pow(const double base, const ArrayXd exponent);
 class Detector {
 public:
 	enum class CalcType {BEST, MEAN, WORST, LIST_MODE};
-	Detector(BkgResponse bkg, DistResponse distResp, AngularResponse angResp, double edge_limit, unsigned int mean_iters);
+	Detector(BkgResponse bkg, DistResponse distResp, AngularResponse angResp, double edge_limit, unsigned int mean_iters, unsigned int sim_iters);
 	Detector();
 	~Detector();
 	void SetDistance(double distance);
@@ -56,11 +56,12 @@ public:
 	void SetVelocity(double velocity);
 	double GetVelocity() {return velocity;};
 	
-	/*! Find the critical limit in number of pulses based on a given acceptable false positive rate. This function calls Detector::CriticalLimit(). Note that if the critical limit for list mode measurements are to be calculated, use Detector::CriticalLimitLM_FPH() instead.
+	/*! Find the critical limit in number of pulses based on a given acceptable false positive rate. This function calls Detector::CriticalLimit() or Detector::CriticalLimitLM_FPH() depending on the input arguments.
 	 \param fph Number of acceptable false positives per hour. Does not have to be an integer but has to be a number greater than 0.
+	 \param tp The calculation type for which the critical limit should be calculated.
 	 \return The critical limit. Note that the actual false positive rate might be lower than the one given as a parameter.
 	 */
-	unsigned int CriticalLimitFPH(const double fph);
+	unsigned int CriticalLimitFPH(const double fph, CalcType tp);
 	
 	/*! Version of Detector::CriticalLimitFPH() for list mode calculations. Calls Detector::CrticalLimitLM().
 	 \param fph Number of acceptable false positives per hour. Does not have to be an integer but has to be a number greater than 0.
@@ -115,7 +116,15 @@ public:
 	 \param tp The type of integration used
 	 \return The true positive probability.
 	 */
-	double CalcTruePositiveProb(double alpha, double testAct, CalcType tp);
+	double CalcTruePositiveProbFPH(double fph, double testAct, CalcType tp);
+	
+	
+	/*! Set the number of simulations to use in the loop approximating the value of beta and the mean maximum value when performing list mode calculations.
+	 \param sim_iters the number of iterations.
+	 
+	 */
+	void SetSimIters(unsigned int sim_iters) {Detector::sim_iters = sim_iters;};
+	
 	ArrayXd S(const ArrayXd &t);
 	double S(const double t);
 	ArrayXd dist_f(const ArrayXd &t);
@@ -139,6 +148,7 @@ private:
 	double startTime, stopTime;
 	
 	unsigned int mean_iters;
+	unsigned int sim_iters;
 	
 	double integrationTime;
 	double dist_f(const double t);
@@ -178,9 +188,10 @@ private:
 	 \param actFac The factor which modifies the amplitude of the source response curve.
 	 \param critical_limit The limit used to decide if the source was detected or not.
 	 \param iterations The number of iterations used when running the simulation.
+	 \return meanMax Holds the mean maximum value from the simulations run on return.
 	 \return The probability of not detecting a radioactive source which is present.
 	 */
-	double SimMeasurements(double actFac, unsigned int critical_limit, unsigned int iterations);
+	double SimMeasurements(double actFac, unsigned int critical_limit, unsigned int iterations, double &meanMax);
 	
 	/* Uses binary search to find the time limits used in list mode simulations.
 	 */

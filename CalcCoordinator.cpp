@@ -84,7 +84,6 @@ int CalcThread::CalcTimeVsActData(CalcInfo &info) {
 			timeActVec.push_back(std::pair<double, double>(currentTime, currentM));
 		}
 		current_C_L++;
-		
 	}
 	
 	ArrayXd testTimes = ArrayXd::LinSpaced(info.steps, info.start_time, info.stop_time);
@@ -140,9 +139,8 @@ int CalcThread::CalcTimeAndAct(CalcInfo &info) {
 	vector<double> actVec;
 	if (info.fixedInt) {
 		time = info.intTime;
-		double alpha = (info.fpPerHour * time) / 3600.0;
 		info.det.SetIntegrationTime(time);
-		actValue = info.det.CalcActivity(alpha, info.beta, info.cType);
+		actValue = info.det.CalcActivityFPH(info.fpPerHour, info.beta, info.cType);
 	} else {
 		FindGlobalMinima(info, time, actValue);
 	}
@@ -160,8 +158,8 @@ int CalcThread::CalcTimeAndAct(CalcInfo &info) {
 		calcTypeStr = string("UNKNOWN");
 	}
 	info.det.SetIntegrationTime(time);
-	double srcDetectProb = info.det.CalcTruePositiveProb((info.fpPerHour * time) / 3600.0, actValue, info.cType);
-	int crit_limit = info.det.CriticalLimitFPH(info.fpPerHour);
+	double srcDetectProb = info.det.CalcTruePositiveProbFPH(info.fpPerHour, actValue, info.cType);
+	int crit_limit = info.det.CriticalLimitFPH(info.fpPerHour, info.cType);
 	
 	ArrayXd signalArray = info.det.CalcSignal(actValue, info.cType);
 	
@@ -252,7 +250,7 @@ void FindLocalMinima(CalcInfo &info, int target_C_L, double &iTime, double &minM
 	int current_C_L;
 	do {
 		info.det.SetIntegrationTime(upper_time);
-		current_C_L = info.det.CriticalLimitFPH(info.fpPerHour);
+		current_C_L = info.det.CriticalLimitFPH(info.fpPerHour, info.cType);
 		
 		if (current_C_L > target_C_L) {
 			upper_time = lower_time + (upper_time - lower_time) / 2.0;
@@ -269,7 +267,7 @@ void FindLocalMinima(CalcInfo &info, int target_C_L, double &iTime, double &minM
 	do {
 		upper_time *= 2.0; //Potentially fix me, probably a bit to radical to double the upper time
 		info.det.SetIntegrationTime(upper_time);
-	} while (info.det.CriticalLimitFPH(info.fpPerHour) == target_C_L);
+	} while (info.det.CriticalLimitFPH(info.fpPerHour, info.cType) == target_C_L);
 	
 	//Now do the actual minima-finding part
 	//This is done by moving the upper and lower time limits closer to each other which results in the algorithm closing in on when target_C_L becomes target_C_L + 1
@@ -277,7 +275,7 @@ void FindLocalMinima(CalcInfo &info, int target_C_L, double &iTime, double &minM
 	while (upper_time - lower_time > maxTimeDiff) {
 		c_time = (upper_time - lower_time) / 2.0 + lower_time;
 		info.det.SetIntegrationTime(c_time);
-		current_C_L = info.det.CriticalLimitFPH(info.fpPerHour);
+		current_C_L = info.det.CriticalLimitFPH(info.fpPerHour, info.cType);
 		if (current_C_L == target_C_L) {
 			lower_time = c_time;
 		} else {
