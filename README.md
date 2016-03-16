@@ -21,3 +21,12 @@ In addition, CMake (version >= 3.1.0) is required to create the make-file.
 As quite a few arguments are required in order for the application to run, it is suggested that you start by testing the provided example-files. Run an example using the "--config_file" argument, e.g. "./MobileDetectorSim --config_file example_3.ini".
 
 Note that the file "example_1.ini" has a set of settings which requires a significant amount of time to run.
+
+
+##To-Do
+* Add simulation of detectors from -90 to 90 degrees.
+* Add a verbose mode.
+* Optimise the minima finding algorithm when using list mode (maybe).
+* Write a manual.
+* Take 3 axes into account when calculating distance (to make useful for calculations on airplanes).
+* Take the attenuation of gamma radiation in air into account.
