@@ -121,6 +121,7 @@ int CalcThread::CalcTimeVsActData(CalcInfo &info) {
 		outResults->Write("calc_type", calcTypeStr);
 		outResults->Write("distance", info.det.GetDistance());
 		outResults->Write("velocity", info.det.GetVelocity());
+		outResults->Write("background", info.det.GetSimBkg());
 		outResults->Write("cl_values", clValue);
 		outResults->Write("cl_times", clTime);
 		outResults->Write("times_and_acts", timeActVec);
@@ -165,10 +166,10 @@ int CalcThread::CalcTimeAndAct(CalcInfo &info) {
 	
 	std::vector<std::pair<double, double>> periodsVector = info.det.GetIntTimes(info.cType);
 	
-	double timeStdDev;
-	double actStdDev;
-	double actMean;
-	double timeMean;
+	double timeStdDev = -1;
+	double actStdDev = -1;
+	double actMean = -1;
+	double timeMean = -1;
 	
 	if (info.uncertLoops > 1) {
 		double tempTime, tempAct, timeSum = 0, actSum = 0;
@@ -201,6 +202,7 @@ int CalcThread::CalcTimeAndAct(CalcInfo &info) {
 		outResults->Write("calc_type", calcTypeStr);
 		outResults->Write("distance", info.det.GetDistance());
 		outResults->Write("velocity", info.det.GetVelocity());
+		outResults->Write("background", info.det.GetSimBkg());
 		outResults->Write("fix_int_time", info.fixedInt);
 		outResults->Write("int_time", time);
 		outResults->Write("min_act", actValue);
@@ -222,7 +224,7 @@ int CalcThread::CalcTimeAndAct(CalcInfo &info) {
 void FindGlobalMinima(CalcInfo &info, double &time, double &bestM) {
 	double currentTime = 0.0, lastTime = 5.0;
 	double lastM, currentM;
-	int current_C_L = 2;
+	int current_C_L = 3; //Fix me: starting C_L value influences speed quite a bit. Find better starting value!
 	FindLocalMinima(info, current_C_L, lastTime, lastM);
 	currentTime = lastTime;
 	current_C_L++;
