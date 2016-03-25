@@ -3,17 +3,13 @@
 
 #include "Response.h"
 
-AngularResponse::AngularResponse(const std::vector<double> pulses, const std::vector<double> livetime, const std::vector<double> angle, const double bkg_cps) : rand(chrono::system_clock::now().time_since_epoch().count()) {
+AngularResponse::AngularResponse(const std::vector<double> pulses, const std::vector<double> livetime, const std::vector<double> angle, const double bkg_cps) : rand(chrono::system_clock::now().time_since_epoch().count()), noAngResp(false) {
 	if (pulses.size() != livetime.size() or pulses.size() != angle.size()) {
 		throw length_error(std::string("AngularResponse(): Not the same number of angles, pulse values or live times."));
 	}
 	if (livetime.size() <= 1) {
-		ang = Eigen::ArrayXd(2);
-		cps = Eigen::ArrayXd(2);
-		ang[0] = 0.0;
-		ang[1] = pi / 2.0;
-		cps[0] = 1.0;
-		cps[1] = 1.0;
+		noAngResp = true;
+		return;
 	} else {
 		ang = Eigen::ArrayXd(angle.size()); //Fix me: why are we using both ang and angles
 		cps = Eigen::ArrayXd(angle.size());
@@ -29,7 +25,7 @@ AngularResponse::AngularResponse(const std::vector<double> pulses, const std::ve
 }
 
 AngularResponse::AngularResponse() {
-	
+	noAngResp = true;
 }
 
 AngularResponse::~AngularResponse() {
@@ -41,7 +37,9 @@ void AngularResponse::CreateResponseFunc() {
 }
 
 void AngularResponse::Randomize(double newBkg) {
-	
+	if (noAngResp) {
+		return;
+	}
 	normal_distribution<double> angDist(0, pi / 18); //Uncertainty in angle is approximately 10 degrees or pi / 18
 	
 	for (int k = 0; k < angles.size(); k++) {
@@ -64,6 +62,10 @@ void AngularResponse::Randomize(double newBkg) {
 }
 
 AngularResponse AngularResponse::operator=(const AngularResponse &setObj) {
+	noAngResp = setObj.noAngResp;
+	if (noAngResp) {
+		return *this;
+	}
 	angles = setObj.angles;
 	measCounts = setObj.measCounts;
 	measTime = setObj.measTime;
@@ -73,15 +75,17 @@ AngularResponse AngularResponse::operator=(const AngularResponse &setObj) {
 	return *this;
 }
 
-//AngularResponse::AngularResponse() : rand(chrono::system_clock::now().time_since_epoch().count()) {
-//	
-//}
-
-double AngularResponse::operator()(const double &angle) {
+double AngularResponse::operator()(const double &angle) const {
+	if (noAngResp) {
+		return 1.0;
+	}
 	return (*ext)(abs(angle));
 }
 
-Eigen::ArrayXd AngularResponse::operator()(const Eigen::ArrayXd &angle) {
+Eigen::ArrayXd AngularResponse::operator()(const Eigen::ArrayXd &angle) const {
+	if (noAngResp) {
+		return Eigen::ArrayXd::Ones(angle.size());
+	}
 	return (*ext)(angle.abs());
 }
 
@@ -175,11 +179,11 @@ DistResponse DistResponse::operator=(const DistResponse &setDist) {
 	return *this;
 }
 
-double DistResponse::operator()(const double &dist) {
+double DistResponse::operator()(const double &dist) const {
 	return p1 / (4.0 * pi * pow(dist, p2));
 }
 
-Eigen::ArrayXd DistResponse::operator()(const Eigen::ArrayXd &dist) {
+Eigen::ArrayXd DistResponse::operator()(const Eigen::ArrayXd &dist) const {
 	return p1 / (4.0 * pi * dist.pow(p2));
 }
 

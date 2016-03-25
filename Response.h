@@ -27,11 +27,12 @@ public:
 	AngularResponse(const std::vector<double> pulses, const std::vector<double> livetime, const std::vector<double> angle, const double bkg_cps);
 	AngularResponse operator=(const AngularResponse &setObj);
 	AngularResponse();
-	double operator()(const double &angle);
-	Eigen::ArrayXd operator()(const Eigen::ArrayXd &angle);
+	double operator()(const double &angle) const;
+	Eigen::ArrayXd operator()(const Eigen::ArrayXd &angle) const;
 	~AngularResponse();
 	void Randomize(double newBkg);
 private:
+	bool noAngResp;
 	
 	mt19937 rand;
 	
@@ -74,8 +75,8 @@ public:
 	DistResponse(const std::vector<double> pulses, const std::vector<double> livetime, const std::vector<double> dist, double bkg_cps, double activity, double activity_uncertainty, bool curve_fit = false); //curve_fit should probably default to false: fix me!
 	DistResponse();
 	DistResponse operator=(const DistResponse &setDist);
-	double operator()(const double &dist);
-	Eigen::ArrayXd operator()(const Eigen::ArrayXd &dist);
+	double operator()(const double &dist) const;
+	Eigen::ArrayXd operator()(const Eigen::ArrayXd &dist) const;
 	void Randomize(double newBkg);
 private:
 	void FitData();
