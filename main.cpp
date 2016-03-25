@@ -226,14 +226,11 @@ int main(int argc, const char * argv[])
 	AngularResponse angResp;
 	std::vector<std::string> angData;
 	if (vm.count("ang_response") == 0) {
-		std::vector<double> angInput;
-		angInput.push_back(1.0);
-		enableUncertainty = false;
-		angResp = AngularResponse(angInput, angInput, angInput, 0.0);
+		
 	} else {
 		angData = vm["ang_response"].as<std::vector<std::string> >();
 		try {
-			angResp = parseAngularData(angData, bkg_pulses / bkg_livetime, enableUncertainty); //Fixme, bkg!
+			angResp = parseAngularData(angData, bkg_pulses / bkg_livetime, enableUncertainty); //Fix me, bkg!
 		} catch (std::runtime_error e) {
 			cout << "Error when parsing angular data: \"" << e.what() << "\"" << endl;
 			return 0;
