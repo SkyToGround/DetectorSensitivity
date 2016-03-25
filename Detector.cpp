@@ -18,11 +18,11 @@ void Detector::RandomizeParameters() {
 	angResp.Randomize(newBkg);
 }
 
-std::pair<double, double> Detector::GetIntegrationTimes(int m, double F) {
+std::pair<double, double> Detector::GetIntegrationTimes(int m, double F) const {
 	return std::pair<double, double>(integrationTime * (double(m) + F), integrationTime * (double(m) + F + 1));
 }
 
-std::vector<std::pair<double,double>> Detector::GetIntTimes(CalcType tp) {
+std::vector<std::pair<double,double>> Detector::GetIntTimes(CalcType tp) const {
 	std::vector<std::pair<double, double>> retVec;
 	double F = 0;
 	if (CalcType::LIST_MODE == tp) {
@@ -74,30 +74,30 @@ void Detector::SetIntegrationTime(double intTime) {
 	Detector::integrationTime = intTime;
 }
 
-double Detector::dist_f(const double t) {
+double Detector::dist_f(const double t) const {
 	return sqrt((velocity * t) * (velocity * t) + distance * distance);
 }
 
-ArrayXd Detector::dist_f(const ArrayXd &t) {
+ArrayXd Detector::dist_f(const ArrayXd &t) const {
 	return sqrt((velocity * t) * (velocity * t) + distance * distance);
 }
 
-double Detector::ang_f(const double t) {
+double Detector::ang_f(const double t) const {
 	return asin(distance / dist_f(t));
 }
 
-ArrayXd Detector::ang_f(const ArrayXd &t) {
+ArrayXd Detector::ang_f(const ArrayXd &t) const {
 	return asin(distance / dist_f(t));
 }
 
-double Detector::S(const double t) {
+double Detector::S(const double t) const {
 	double actualDist = dist_f(t);
 	double distPart = distResp(actualDist);
 	double angPart = angResp(ang_f(t));
 	return distPart * angPart;
 }
 
-ArrayXd Detector::S(const ArrayXd &t) {
+ArrayXd Detector::S(const ArrayXd &t) const {
 	return distResp(dist_f(t)) * angResp(ang_f(t));
 }
 
@@ -109,7 +109,7 @@ double Detector::S_worst(const double i_time) {
 	return Int_S(0, i_time);
 }
 
-ArrayXd Detector::S_Int(const std::vector<std::pair<double, double> > i_time) {
+ArrayXd Detector::S_Int(const std::vector<std::pair<double, double> > i_time) const {
 	ArrayXd retArr = ArrayXd::Zero(i_time.size());
 	for (int i = 0; i < i_time.size(); i++) {
 		retArr[i] = Int_S(i_time[i].first, i_time[i].second);
@@ -117,7 +117,7 @@ ArrayXd Detector::S_Int(const std::vector<std::pair<double, double> > i_time) {
 	return retArr;
 }
 
-ArrayXd Detector::S_mean(const std::vector<std::pair<double, double> > i_time) {
+ArrayXd Detector::S_mean(const std::vector<std::pair<double, double> > i_time) const {
 	int low_m = 0, high_m = 0;
 	int tmpCtr = int(i_time.size()) - 1;
 	while (0 < tmpCtr) {
@@ -141,7 +141,7 @@ ArrayXd Detector::S_mean(const std::vector<std::pair<double, double> > i_time) {
 	return retArr;
 }
 
-double Detector::Int_S(const double start, const double stop) {
+double Detector::Int_S(const double start, const double stop) const {
 	const int parts = 256;
 	ArrayXd times = ArrayXd::LinSpaced(parts, start, stop);
 	ArrayXd values = S(times);
@@ -149,7 +149,7 @@ double Detector::Int_S(const double start, const double stop) {
 	return (((values.segment(0, parts - 1) + values.segment(1,  parts - 1)) / 2.0) * stepSize).sum();
 }
 
-ArrayXd Detector::S_m(const ArrayXd &t, const double i_time) {
+ArrayXd Detector::S_m(const ArrayXd &t, const double i_time) const {
 	VectorXd signal(S(t));
 	double delta_size = abs(t[0] - t[1]);
 	int elements = int(i_time / delta_size + 0.5);
@@ -207,14 +207,14 @@ ArrayXd pow(const double base, const ArrayXd exponent) {
 	return ret;
 }
 
-unsigned int Detector::CriticalLimitFPH(const double fph, CalcType tp) {
+unsigned int Detector::CriticalLimitFPH(const double fph, const CalcType tp) const {
 	if (CalcType::LIST_MODE == tp) {
 		return CriticalLimitLM_FPH(fph);
 	}
 	return CriticalLimit((fph * integrationTime) / 3600.0);
 }
 
-unsigned int Detector::CriticalLimit(const double alpha) {
+unsigned int Detector::CriticalLimit(const double alpha) const {
 	double B = simBkg * integrationTime;
 	unsigned int i = 0;
 	double res = 1.0;
@@ -237,12 +237,12 @@ no_factorial:
 	return i; //Must not be i - 1 as we are integrating to C_L - 1 according to the equation
 }
 
-unsigned int Detector::CriticalLimitLM_FPH(const double fph) {
+unsigned int Detector::CriticalLimitLM_FPH(const double fph) const {
 	double alpha = 1.0 - exp(-fph);
 	return CriticalLimitLM(alpha);
 }
 
-unsigned int Detector::CriticalLimitLM(const double alpha) {
+unsigned int Detector::CriticalLimitLM(const double alpha) const {
 	int i = int(simBkg * integrationTime + 0.5);
 	while (1.0 - F_N(i) > alpha) {
 		i++;
@@ -258,8 +258,8 @@ ArrayXd Detector::CalcSignal(double useAct, CalcType tp) {
 	if (CalcType::LIST_MODE == tp) {
 		double retMeanMax;
 		SimMeasurements(useAct, 0, sim_iters, retMeanMax);
-		ArrayXd retArr;
-		retArr << retMeanMax;
+		ArrayXd retArr(1);
+		retArr[0] = retMeanMax;
 		return retArr;
 	}
 	ArrayXd sig;
@@ -277,7 +277,7 @@ ArrayXd Detector::CalcSignal(double useAct, CalcType tp) {
 
 
 //Should yield the same result as FindActivityFunctor
-double Detector::CalcTruePositiveProbFPH(double fph, double testAct, CalcType tp) {
+double Detector::CalcTruePositiveProbFPH(const double fph, const double testAct, CalcType tp) const {
 	
 	ArrayXd sig;
 	std::vector<std::pair<double, double>> intTimes = GetIntTimes(tp);
@@ -292,7 +292,7 @@ double Detector::CalcTruePositiveProbFPH(double fph, double testAct, CalcType tp
 	int critical_limit = CriticalLimitFPH(fph, tp);
 	if (CalcType::LIST_MODE == tp) {
 		double tempVal;
-		double prob =SimMeasurements(testAct, critical_limit, sim_iters, tempVal);
+		double prob = SimMeasurements(testAct, critical_limit, sim_iters, tempVal);
 		return 1.0 - prob;
 	}
 	
@@ -323,6 +323,10 @@ double Detector::CalcActivityFPH(double fph, double beta, Detector::CalcType tp)
 		return CalcActivity(1.0 - exp(-fph), beta, tp);
 	}
 	return CalcActivity((fph * integrationTime) / 3600.0, beta, tp);
+}
+
+double Detector::GetSimBkg() const {
+	return simBkg;
 }
 
 double Detector::CalcActivity(double alpha, double beta, CalcType tp) {
@@ -422,6 +426,7 @@ double Detector::CalcActivityLM(double alpha, double beta) {
 			low = testPoint;
 		}
 	} while (high - low > diffLimit);
+	std::cout << "Done with simulation!" << std::endl;
 	return p[0];
 }
 
@@ -429,11 +434,11 @@ void Detector::SetSimBkg(double newSimBkg) {
 	Detector::simBkg = newSimBkg;
 }
 
-double Detector::p_mu(const unsigned int n, const double mu) {
+double Detector::p_mu(const unsigned int n, const double mu) const {
 	return (exp(-mu) * pow(mu, n)) / boost::math::factorial<double>(n);
 }
 
-double Detector::P_mu(const unsigned int n, const double mu) {
+double Detector::P_mu(const unsigned int n, const double mu) const {
 	double tempRes = 0;
 	for (int i = 0; i <= n; i++) {
 		tempRes += pow(mu, i) / boost::math::factorial<double>(i);
@@ -441,13 +446,13 @@ double Detector::P_mu(const unsigned int n, const double mu) {
 	return exp(-mu) * tempRes;
 }
 
-double Detector::F_N(unsigned int n) {
+double Detector::F_N(const unsigned int n) const {
 	const double totalTime = 3600.0;
 	double sup_part = (1.0 - (simBkg * integrationTime) / (n + 1.0)) * simBkg * (totalTime - integrationTime) * p_mu(n, simBkg * integrationTime);
 	return  P_mu(n, simBkg * integrationTime) * exp(-sup_part);
 }
 
-double Detector::SimMeasurements(double actFac, unsigned int critical_limit, unsigned int iterations, double &meanMax) {
+double Detector::SimMeasurements(double actFac, unsigned int critical_limit, unsigned int iterations, double &meanMax) const {
 	unsigned int truePositiveProb = 0;
 	double maxRate = S(0.0) * actFac + simBkg;
 	
@@ -462,10 +467,17 @@ double Detector::SimMeasurements(double actFac, unsigned int critical_limit, uns
 	//This code should be profiled, boost::circular_buffer might be faster
 	unsigned int cCount, maxValue = 0;
 	std::queue<double> eventQueue;
-	unsigned int sumMax; //Used to calculate the mean max
+	unsigned int sumMax = 0; //Used to calculate the mean max
+	double cStopTime;
 	for (int i = 0; i < iterations; i++) {
 		maxValue = 0;
-		cTime = startTime + expDist(gen);
+		if (startTime>-integrationTime) {
+			cTime = -integrationTime + expDist(gen);
+			cStopTime = integrationTime;
+		} else {
+			cTime = startTime + expDist(gen);
+			cStopTime = stopTime;
+		}
 		eventQueue = std::queue<double>(); //Clear the queue
 		cCount = 0;
 		do {
@@ -483,7 +495,7 @@ double Detector::SimMeasurements(double actFac, unsigned int critical_limit, uns
 				}
 			}
 			cTime += expDist(gen);
-		} while (cTime < stopTime);
+		} while (cTime < cStopTime);
 		if (maxValue >= critical_limit) {
 			truePositiveProb++;
 		}
