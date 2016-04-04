@@ -291,8 +291,7 @@ double Detector::CalcTruePositiveProbFPH(const double fph, const double testAct,
 	
 	int critical_limit = CriticalLimitFPH(fph, tp);
 	if (CalcType::LIST_MODE == tp) {
-		double tempVal;
-		double prob = SimMeasurements(testAct, critical_limit, sim_iters, tempVal);
+		double prob = SimMeasurementsOpti(testAct, critical_limit, sim_iters);
 		return 1.0 - prob;
 	}
 	
@@ -501,6 +500,48 @@ double Detector::SimMeasurements(double actFac, unsigned int critical_limit, uns
 		}
 	}
 	meanMax = double(sumMax) / double(iterations);
+	return 1.0 - double(truePositiveProb) / double(iterations);
+}
+
+double Detector::SimMeasurementsOpti(double actFac, unsigned int critical_limit, unsigned int iterations) const {
+	unsigned int truePositiveProb = 0;
+	double maxRate = S(0.0) * actFac + simBkg;
+	
+	std::time_t now = std::time(0);
+	boost::random::mt19937 gen{static_cast<std::uint32_t>(now)};
+	boost::random::exponential_distribution<> expDist(maxRate);
+	boost::random::uniform_real_distribution<> rejectDist(0, maxRate);
+	
+	double cTime, pTime;
+	
+	boost::circular_buffer<double> eventQueue(critical_limit);
+	
+	double cStopTime;
+	
+	for (int i = 0; i < iterations; i++) {
+		if (startTime>-integrationTime) {
+			cTime = -integrationTime + expDist(gen);
+			cStopTime = integrationTime;
+		} else {
+			cTime = startTime + expDist(gen);
+			cStopTime = stopTime;
+		}
+		eventQueue.clear(); //Clear the queue
+		do {
+			if (rejectDist(gen) <= S(cTime) * actFac + simBkg) {
+				eventQueue.push_back(cTime);
+				pTime = cTime - integrationTime;
+				while (eventQueue.front() < pTime) {
+					eventQueue.pop_front();
+				}
+				if (eventQueue.size() >= critical_limit) {
+					truePositiveProb++;
+					break;
+				}
+			}
+			cTime += expDist(gen);
+		} while (cTime < cStopTime);
+	}
 	return 1.0 - double(truePositiveProb) / double(iterations);
 }
 

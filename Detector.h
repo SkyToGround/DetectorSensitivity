@@ -19,6 +19,7 @@
 #include <boost/math/special_functions/factorials.hpp>
 #include <boost/math/distributions/chi_squared.hpp>
 #include <boost/random.hpp>
+#include <boost/circular_buffer.hpp>
 #include <queue>
 
 using namespace std;
@@ -194,6 +195,14 @@ private:
 	 \return The probability of not detecting a radioactive source which is present.
 	 */
 	double SimMeasurements(double actFac, unsigned int critical_limit, unsigned int iterations, double &meanMax) const;
+	
+	/*! Calculates the false negative probability in list mode measurements using simulations. A slightly optimized version of Detector::SimMeasurements().
+	 \param actFac The factor which modifies the amplitude of the source response curve.
+	 \param critical_limit The limit used to decide if the source was detected or not.
+	 \param iterations The number of iterations used when running the simulation.
+	 \return The probability of not detecting a radioactive source which is present.
+	 */
+	double SimMeasurementsOpti(double actFac, unsigned int critical_limit, unsigned int iterations) const;
 	
 	/* Uses binary search to find the time limits used in list mode simulations.
 	 */

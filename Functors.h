@@ -46,8 +46,7 @@ struct FindActivityFunctorLM : DenseFunctor<double> {
 	
 	int operator()(const VectorXd &p, VectorXd &res) const {
 		double M = p[0];
-		double tempVal;
-		res[0] = det->SimMeasurements(M, C_L, iterations, tempVal) - beta;
+		res[0] = det->SimMeasurementsOpti(M, C_L, iterations) - beta;
 		return 0;
 	}
 };
