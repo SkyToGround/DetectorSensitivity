@@ -331,7 +331,7 @@ int main(int argc, const char * argv[])
 						calc.AddPlotCalculation(det, cTypes[d], fph, beta, start_time, stop_time, steps);
 					} else if (fixedInt) {
 						for (int e = 0; e < fixedIntTimes.size(); e++) {
-							calc.AddFixedCalculation(det, cTypes[d], fph, beta, fixedIntTimes[e]);
+							calc.AddFixedCalculation(det, cTypes[d], fph, beta, fixedIntTimes[e], uncertainty_loops);
 						}
 					} else {
 						calc.AddCalculation(det, cTypes[d], fph, beta, uncertainty_loops);
