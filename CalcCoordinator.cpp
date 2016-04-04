@@ -173,27 +173,48 @@ int CalcThread::CalcTimeAndAct(CalcInfo &info) {
 	
 	if (info.uncertLoops > 1) {
 		double tempTime, tempAct, timeSum = 0, actSum = 0;
-		for (int y = 0; y < info.uncertLoops; y++) {
-			info.det.RandomizeParameters();
-			FindGlobalMinima(info, tempTime, tempAct);
-			actSum += tempAct;
-			timeSum += tempTime;
-			timeVec.push_back(tempTime);
-			actVec.push_back(tempAct);
-		}
-		actMean = actSum / info.uncertLoops;
-		timeMean = timeSum / info.uncertLoops;
-		
 		double timeDiffSum = 0;
 		double actDiffSum = 0;
 		
-		for (int i = 0; i < info.uncertLoops; i++) {
-			timeDiffSum += (timeVec[i] - timeMean) * (timeVec[i] - timeMean);
-			actDiffSum += (actVec[i] - actMean) * (actVec[i] - actMean);
+		if (info.fixedInt) {
+			for (int y = 0; y < info.uncertLoops; y++) {
+				info.det.RandomizeParameters();
+				tempAct = info.det.CalcActivityFPH(info.fpPerHour, info.beta, info.cType);
+				actSum += tempAct;
+				timeVec.push_back(tempTime);
+				actVec.push_back(tempAct);
+				
+			}
+			actMean = actSum / info.uncertLoops;
+			timeMean = info.intTime;
+			
+			for (int i = 0; i < info.uncertLoops; i++) {
+				actDiffSum += (actVec[i] - actMean) * (actVec[i] - actMean);
+			}
+			
+			timeStdDev = 0.0;
+			actStdDev = sqrt(actDiffSum / info.uncertLoops);
+			
+		} else {
+			for (int y = 0; y < info.uncertLoops; y++) {
+				info.det.RandomizeParameters();
+				FindGlobalMinima(info, tempTime, tempAct);
+				actSum += tempAct;
+				timeSum += tempTime;
+				timeVec.push_back(tempTime);
+				actVec.push_back(tempAct);
+			}
+			actMean = actSum / info.uncertLoops;
+			timeMean = timeSum / info.uncertLoops;
+			
+			for (int i = 0; i < info.uncertLoops; i++) {
+				timeDiffSum += (timeVec[i] - timeMean) * (timeVec[i] - timeMean);
+				actDiffSum += (actVec[i] - actMean) * (actVec[i] - actMean);
+			}
+			
+			timeStdDev = sqrt(timeDiffSum / info.uncertLoops);
+			actStdDev = sqrt(actDiffSum / info.uncertLoops);
 		}
-		
-		timeStdDev = sqrt(timeDiffSum / info.uncertLoops);
-		actStdDev = sqrt(actDiffSum / info.uncertLoops);
 	}
 	
 	{
