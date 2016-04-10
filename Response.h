@@ -4,7 +4,6 @@
 #ifndef __NeutronDetectorSim__AngularResponse__
 #define __NeutronDetectorSim__AngularResponse__
 
-#include <iostream>
 #include <string>
 #include <vector>
 #include <eigen3/Eigen/Dense>

@@ -3,7 +3,7 @@
 
 #include "Response.h"
 
-AngularResponse::AngularResponse(const std::vector<double> pulses, const std::vector<double> livetime, const std::vector<double> angle, const double bkg_cps) : rand(chrono::system_clock::now().time_since_epoch().count()), noAngResp(false) {
+AngularResponse::AngularResponse(const std::vector<double> pulses, const std::vector<double> livetime, const std::vector<double> angle, const double bkg_cps) : rand(boost::chrono::system_clock::now().time_since_epoch().count()), noAngResp(false) {
 	if (pulses.size() != livetime.size() or pulses.size() != angle.size()) {
 		throw length_error(std::string("AngularResponse(): Not the same number of angles, pulse values or live times."));
 	}
@@ -89,7 +89,7 @@ Eigen::ArrayXd AngularResponse::operator()(const Eigen::ArrayXd &angle) const {
 	return (*ext)(angle.abs());
 }
 
-DistResponse::DistResponse(const std::vector<double> pulses, const std::vector<double> livetime, const std::vector<double> dist, double bkg_cps, double activity, double activity_uncertainty, bool curve_fit) : cpsData(dist.size()), distData(dist.size()), measCounts(dist.size()), measTime(dist.size()), activity(activity), activityUncertainty(activity_uncertainty), rand(chrono::system_clock::now().time_since_epoch().count()), curve_fit(curve_fit) {
+DistResponse::DistResponse(const std::vector<double> pulses, const std::vector<double> livetime, const std::vector<double> dist, double bkg_cps, double activity, double activity_uncertainty, bool curve_fit) : cpsData(dist.size()), distData(dist.size()), measCounts(dist.size()), measTime(dist.size()), activity(activity), activityUncertainty(activity_uncertainty), rand(boost::chrono::system_clock::now().time_since_epoch().count()), curve_fit(curve_fit) {
 	
 	if (dist.size() != pulses.size() or dist.size() != livetime.size()) {
 		throw length_error(std::string("DistResponse(): Not the same number of distances, pulse values or live times."));
@@ -109,7 +109,7 @@ DistResponse::DistResponse(const std::vector<double> pulses, const std::vector<d
 	FitData();
 }
 
-DistResponse::DistResponse() : rand(chrono::system_clock::now().time_since_epoch().count()), p1(0.0), p2(0.0) {
+DistResponse::DistResponse() : rand(boost::chrono::system_clock::now().time_since_epoch().count()), p1(0.0), p2(0.0) {
 	
 }
 
@@ -200,7 +200,7 @@ double BkgResponse::GetCPS() {
 }
 
 double BkgResponse::GetRandomizedCPS() {
-	mt19937 rand(chrono::system_clock::now().time_since_epoch().count());
+	mt19937 rand(boost::chrono::system_clock::now().time_since_epoch().count());
 	
 	normal_distribution<double> pulseDist(pulses, sqrt(pulses));
 	

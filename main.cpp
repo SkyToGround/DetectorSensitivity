@@ -12,6 +12,7 @@
 #include <exception>
 #include <boost/lexical_cast.hpp>
 #include <boost/filesystem.hpp>
+#include "ConsolePrint.hpp"
 
 namespace po = boost::program_options;
 
@@ -30,6 +31,7 @@ int main(int argc, const char * argv[])
 	po::options_description generic("Generic arguments");
 	generic.add_options()
 	("help", "Show this help message")
+	("verbose", "Print calculation progress and debug messages.")
 	("config_file", po::value<std::string>(), "Retrive input parameters from a config file.");
 	po::options_description conf("Configuration");
 	conf.add_options()
@@ -311,6 +313,12 @@ int main(int argc, const char * argv[])
 		return 0;
 	}
 	
+	if (vm.count("verbose") > 0) {
+		ConsolePrint::Init(true);
+	} else {
+		ConsolePrint::Init(false);
+	}
+	
 	OutputResult::OutputType outDev = OutputResult::OutputType::SCREEN;
 	if (output_file.size() != 0) {
 		outDev = OutputResult::OutputType::JSON_FILE;
@@ -342,6 +350,7 @@ int main(int argc, const char * argv[])
 	}
 	
 	calc.RunCalculations();
+	ConsolePrint::Close();
 	return 0;
 }
 
