@@ -186,6 +186,11 @@ double gauss(const double x, const double mu) {
 	return exp(-((x - mu) * (x - mu)) / (2.0*(sig * sig))) / (sig*2.5066282746310002);
 }
 
+double gauss_cdf(const double x, const double mu) {
+	double sig = sqrt(mu);
+	return 0.5*(1.0 + erf((x - mu) / (sig*sqrt(2))));
+}
+
 ArrayXd gauss(const ArrayXd x, const double mu) {
 	double sig = sqrt(mu);
 	return (-((x - mu) * (x - mu)) / (2.0*(sig*sig))).exp() / (sig*2.5066282746310002);
@@ -219,8 +224,7 @@ unsigned int Detector::CriticalLimit(const double alpha) const {
 	unsigned int i = 0;
 	double res = 1.0;
 	while (res >= alpha) {
-		if (i > boost::math::max_factorial<double>::value) {
-			cout << "Warning, reached a max factorial input of: " << i << endl;
+		if (i > boost::math::max_factorial<double>::value or i > 100) {
 			goto no_factorial;
 		}
 		res = res - ((pow(B, i))*exp(-B)) / boost::math::factorial<double>((unsigned int)i);
@@ -228,10 +232,8 @@ unsigned int Detector::CriticalLimit(const double alpha) const {
 	}
 	return i; //Must not be i - 1 as we are integrating to C_L - 1 according to the equation
 no_factorial:
-	i = 0;
-	res = 1.0;
 	while (res >= alpha) {
-		res = res - gauss(i, B);
+		res -= exp(-B + i*log(B) - log((1.0+1.0/(12.0*i))*sqrt(2*pi*i))- i*log(i/e));
 		i++;
 	}
 	return i; //Must not be i - 1 as we are integrating to C_L - 1 according to the equation
@@ -300,17 +302,18 @@ double Detector::CalcTruePositiveProbFPH(const double fph, const double testAct,
 	ArrayXd res = ArrayXd::Ones(total.size());
 	for (int y = 0; y < total.size(); y++) {
 		for (int j = 0; j <= critical_limit - 1; j++) {
-			if (j > boost::math::max_factorial<double>::value) {
-				cout << "Warning, reached a max factorial input of: " << j << endl;
+			if (j > boost::math::max_factorial<double>::value or j > 100) {
 				goto no_factorial2;
 			}
 			res[y] -= ((pow(total[y], j))*exp(-total[y])) / boost::math::factorial<double>((unsigned int)j);
 		}
 		if (false) {
 no_factorial2:
+			//res[y] = 1.0 - gauss_cdf(critical_limit - 1 + 0.5, total[y]);
 			res[y] = 1.0;
-			for (int k = 0; k <= critical_limit - 1; k++) {
-				res[y] -= gauss(k, total[y]);
+			for (int k = 1; k <= critical_limit - 1; k++) {
+				//res[y] -= gauss(k, total[y]);
+				res[y] -= exp(-total[y] + k*log(total[y]) - log((1.0+1.0/(12.0*k))*sqrt(2*pi*k))- k*log(k/e));
 			}
 		}
 	}
@@ -390,6 +393,7 @@ double Detector::CalcActivity(double alpha, double beta, CalcType tp) {
 }
 
 double Detector::CalcActivityLM(double alpha, double beta) {
+	double initialGuess = CalcActivity(alpha, beta, CalcType::BEST);
 	unsigned int critical_limit = CriticalLimitLM(alpha);
 	
 	FindActivityFunctorLM functor(this, critical_limit, beta, sim_iters);
@@ -399,9 +403,9 @@ double Detector::CalcActivityLM(double alpha, double beta) {
 	
 	//We want to find a starting value that is close to our solution
 	//Fix me: are these searches really needed? (they probably are)
-	double high = 0.0;
+	double high = initialGuess;
 	double low = 0.0;
-	double adder = 0.0001;
+	double adder = initialGuess * 0.1;
 	
 	double diffLimit = 0.0001;
 	
@@ -425,7 +429,7 @@ double Detector::CalcActivityLM(double alpha, double beta) {
 			low = testPoint;
 		}
 	} while (high - low > diffLimit);
-	std::cout << "Done with simulation!" << std::endl;
+	PRINT_T(std::string("Detector::CalcActivityLM(): Sim. finished with C_L = ") + lexical_cast<std::string>(critical_limit) + std::string("."));
 	return p[0];
 }
 
