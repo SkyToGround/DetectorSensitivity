@@ -57,7 +57,7 @@ void CalcThread::operator()() {
 			}
 			tmpInfo = calcValues->at(calcValues->size() - 1);
 			calcValues->pop_back();
-			cout << "Thread " << threadId << " takes on one calculation. " << calcValues->size() << " are left." << endl;
+			PRINT_T(std::string("CalcThread(): Thread starts work on new job. ") + lexical_cast<std::string>(calcValues->size()) + std::string(" jobs are still queued up."));
 		}
 		if (tmpInfo.plotCalc) {
 			CalcTimeVsActData(tmpInfo);
@@ -72,9 +72,13 @@ int CalcThread::CalcTimeVsActData(CalcInfo &info) {
 	std::vector<double> clTime;
 	std::vector<unsigned int> clValue;
 	
-	double currentTime = 0.0;
+	PRINT_T(std::string("CalcThread::CalcTimeVsActData(): Locating minimas between ") + lexical_cast<std::string>(info.start_time) + std::string(" and ") + lexical_cast<std::string>(info.stop_time) + std::string(" seconds."));
+	double currentTime = info.start_time;
 	double currentM;
-	int current_C_L = 2;
+	int current_C_L = int(info.start_time * info.det.GetSimBkg() + 0.5);
+	if (current_C_L < 2) {
+		current_C_L = 2;
+	}
 	while (currentTime < info.stop_time) {
 		FindLocalMinima(info, current_C_L, currentTime, currentM);
 		if (currentTime > info.start_time and currentTime < info.stop_time) {
@@ -82,10 +86,14 @@ int CalcThread::CalcTimeVsActData(CalcInfo &info) {
 			clValue.push_back(current_C_L);
 			
 			timeActVec.push_back(std::pair<double, double>(currentTime, currentM));
+			PRINT_T(std::string("CalcThread::CalcTimeVsActData(): Storing results for C_L = ") + lexical_cast<std::string>(current_C_L) + std::string("."));
+		} else {
+			PRINT_T(std::string("CalcThread::CalcTimeVsActData(): Throwing away results for C_L = ") + lexical_cast<std::string>(current_C_L) + std::string("."));
 		}
 		current_C_L++;
 	}
 	
+	PRINT_T(std::string("CalcThread::CalcTimeVsActData(): Calculating remaining sensitivity values between ") + lexical_cast<std::string>(info.start_time) + std::string(" and ") + lexical_cast<std::string>(info.stop_time) + std::string(" seconds."));
 	ArrayXd testTimes = ArrayXd::LinSpaced(info.steps, info.start_time, info.stop_time);
 	for (int u = 0; u < testTimes.size(); u++) {
 		info.det.SetIntegrationTime(testTimes[u]);
@@ -244,7 +252,7 @@ int CalcThread::CalcTimeAndAct(CalcInfo &info) {
 
 void FindGlobalMinima(CalcInfo &info, double &time, double &bestM) {
 	double currentTime = 0.0, lastTime = 5.0;
-	double lastM, currentM;
+	double lastM = 1.0, currentM = 1.0;
 	int current_C_L = 3; //Fix me: starting C_L value influences speed quite a bit. Find better starting value!
 	FindLocalMinima(info, current_C_L, lastTime, lastM);
 	currentTime = lastTime;
@@ -283,12 +291,12 @@ void FindLocalMinima(CalcInfo &info, int target_C_L, double &iTime, double &minM
 		}
 	 } while (current_C_L != target_C_L);
 	
-	lower_time = upper_time; //This is now or minimum time
+	lower_time = upper_time; //This is now our minimum time
 	
 	//Find some integration time where C_L > target_C_L
 	//This is needed in order for the algorithm to do a binary search in the later stages of the algorithm
 	do {
-		upper_time *= 2.0; //Potentially fix me, probably a bit to radical to double the upper time
+		upper_time *= 1.3; //Potentially fix me, probably a bit to radical to double the upper time
 		info.det.SetIntegrationTime(upper_time);
 	} while (info.det.CriticalLimitFPH(info.fpPerHour, info.cType) == target_C_L);
 	

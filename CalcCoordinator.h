@@ -8,13 +8,14 @@
 #include <string>
 #include <boost/thread/thread.hpp>
 #include <boost/thread/mutex.hpp>
+#include <boost/lexical_cast.hpp>
 #include <vector>
-#include <iostream>
 #include <ctime>
 #include <boost/shared_ptr.hpp>
 #include "Detector.h"
 #include <utility>
 #include "OutputResult.hpp"
+#include "ConsolePrint.hpp"
 
 using namespace std;
 
