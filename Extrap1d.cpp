@@ -8,7 +8,7 @@ Extrap1d::Extrap1d(Eigen::ArrayXd x, Eigen::ArrayXd y) {
 	Extrap1d::x = x;
 	Extrap1d::y = y;
 	if (x.size() != y.size()) {
-		std::cout << "Extrap1d::Extrap1d(): x and y does not have the same dimensions." << std::endl;
+		PRINT_T("Extrap1d::Extrap1d(): x and y does not have the same dimensions.", true);
 		return;
 	}
 	accelerator = gsl_interp_accel_alloc();

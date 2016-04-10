@@ -9,6 +9,7 @@
 #include <eigen3/Eigen/Dense>
 #include <gsl/gsl_interp.h>
 #include <gsl/gsl_spline.h>
+#include "ConsolePrint.hpp"
 
 class Extrap1d {
 public:
