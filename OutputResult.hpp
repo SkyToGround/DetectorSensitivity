@@ -8,9 +8,10 @@
 #include <string>
 #include <vector>
 #include <fstream>
-#include <iostream>
 #include <iomanip>
 #include <eigen3/Eigen/Dense>
+#include <sstream>
+#include "ConsolePrint.hpp"
 
 class OutputResult {
 public:
@@ -36,6 +37,7 @@ private:
 	OutputType outType;
 	unsigned int keyWidth;
 	std::ofstream outStream;
+	std::ostringstream tOut;
 	bool firstJsonItm;
 	bool firstDataItm;
 	

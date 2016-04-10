@@ -35,7 +35,8 @@ void OutputResult::StartResult() {
 }
 
 void OutputResult::CoutStartResult() {
-	std::cout << "\n------------------";
+	tOut.str(std::string(""));
+	tOut << "\n------------------";
 }
 
 void OutputResult::JsonStartResult() {
@@ -60,8 +61,8 @@ void OutputResult::EndResult() {
 }
 
 void OutputResult::CoutEndResult() {
-	std::cout << "\n------------------\n";
-	std::cout.flush();
+	tOut << "\n------------------\n";
+	PRINT(tOut.str());
 }
 
 void OutputResult::JsonEndResult() {
@@ -78,7 +79,7 @@ void OutputResult::JsonCheckFirst() {
 }
 
 void OutputResult::CoutWrite(std::string key, std::string value) {
-	std::cout << "\n" << std::setw(keyWidth) << key << ": " << value;
+	tOut << "\n" << std::setw(keyWidth) << key << ": " << value;
 }
 
 void OutputResult::JsonWrite(std::string key, std::string value) {
@@ -87,7 +88,7 @@ void OutputResult::JsonWrite(std::string key, std::string value) {
 }
 
 void OutputResult::CoutWrite(std::string key, double value) {
-	std::cout << "\n" << std::setw(keyWidth) << key << ": " << value;
+	tOut << "\n" << std::setw(keyWidth) << key << ": " << value;
 }
 
 void OutputResult::JsonWrite(std::string key, double value) {
@@ -96,7 +97,7 @@ void OutputResult::JsonWrite(std::string key, double value) {
 }
 
 void OutputResult::CoutWrite(std::string key, int value) {
-	std::cout << "\n" << std::setw(keyWidth) << key << ": " << value;
+	tOut << "\n" << std::setw(keyWidth) << key << ": " << value;
 }
 
 void OutputResult::JsonWrite(std::string key, int value) {
@@ -106,9 +107,9 @@ void OutputResult::JsonWrite(std::string key, int value) {
 
 void OutputResult::CoutWrite(std::string key, bool value) {
 	if (value) {
-		std::cout << "\n" << std::setw(keyWidth) << key << ": true";
+		tOut << "\n" << std::setw(keyWidth) << key << ": true";
 	} else {
-		std::cout << "\n" << std::setw(keyWidth) << key << ": false";
+		tOut << "\n" << std::setw(keyWidth) << key << ": false";
 	}
 	
 }
@@ -123,11 +124,11 @@ void OutputResult::JsonWrite(std::string key, bool value) {
 }
 
 void OutputResult::CoutWrite(std::string key, std::vector<double> value) {
-	std::cout << "\n<<<<  " << key << "  >>>>\n";
+	tOut << "\n<<<<  " << key << "  >>>>\n";
 	for (int i = 0; i < value.size(); i++) {
-		std::cout << i + 1 << " : " << value[i] << "\n";
+		tOut << i + 1 << " : " << value[i] << "\n";
 	}
-	std::cout << "--  --  --  --";
+	tOut << "--  --  --  --";
 }
 
 void OutputResult::JsonWrite(std::string key, std::vector<double> value) {
@@ -140,11 +141,11 @@ void OutputResult::JsonWrite(std::string key, std::vector<double> value) {
 }
 
 void OutputResult::CoutWrite(std::string key, Eigen::ArrayXd value) {
-	std::cout << "\n<<<<  " << key << "  >>>>\n";
+	tOut << "\n<<<<  " << key << "  >>>>\n";
 	for (int i = 0; i < value.size(); i++) {
-		std::cout << i + 1 << " : " << value[i] << "\n";
+		tOut << i + 1 << " : " << value[i] << "\n";
 	}
-	std::cout << "--  --  --  --";
+	tOut << "--  --  --  --";
 }
 
 void OutputResult::JsonWrite(std::string key, Eigen::ArrayXd value) {
@@ -157,11 +158,11 @@ void OutputResult::JsonWrite(std::string key, Eigen::ArrayXd value) {
 }
 
 void OutputResult::CoutWrite(std::string key, std::vector<unsigned int> value) {
-	std::cout << "\n<<<<  " << key << "  >>>>\n";
+	tOut << "\n<<<<  " << key << "  >>>>\n";
 	for (int i = 0; i < value.size(); i++) {
-		std::cout << i + 1 << " : " << value[i] << "\n";
+		tOut << i + 1 << " : " << value[i] << "\n";
 	}
-	std::cout << "--  --  --  --";
+	tOut << "--  --  --  --";
 }
 
 void OutputResult::JsonWrite(std::string key, std::vector<unsigned int> value) {
@@ -174,11 +175,11 @@ void OutputResult::JsonWrite(std::string key, std::vector<unsigned int> value) {
 }
 
 void OutputResult::CoutWrite(std::string key, std::vector<std::pair<double, double>> value) {
-	std::cout << "\n<<<<  " << key << "  >>>>\n";
+	tOut << "\n<<<<  " << key << "  >>>>\n";
 	for (int i = 0; i < value.size(); i++) {
-		std::cout << value[i].first << " : " << value[i].second << "\n";
+		tOut << value[i].first << " : " << value[i].second << "\n";
 	}
-	std::cout << "--  --  --  --";
+	tOut << "--  --  --  --";
 }
 
 void OutputResult::JsonWrite(std::string key, std::vector<std::pair<double, double>> value) {
