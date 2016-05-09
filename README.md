@@ -25,8 +25,9 @@ Note that the file "example_1.ini" has a set of settings which requires a signif
 
 ##To-Do
 These are in no particular order.
+* Fix problem related to the algorithm finding a local minima instead of a global one.
 * Add simulation of detectors from -90 to 90 degrees.
-* Add a verbose mode.
+* Improve verbose mode.
 * Optimise the minima finding algorithm when using list mode (maybe).
 * Write a manual.
 * Take 3 axes into account when calculating distance (to make useful for calculations on airplanes).
