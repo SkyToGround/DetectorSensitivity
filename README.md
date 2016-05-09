@@ -11,10 +11,9 @@ In addition, CMake (version >= 3.1.0) is required to create the make-file.
 
 ##Compiling
 Start by chaning directory to the source code directory (which contains the "CMakeLists.txt" file).
-* Run CMake:
-    CMake .
-* Then compile the application:
-    make
+* Run CMake: `CMake .`
+* Then compile the application: `make`
+
 When the application is compiled, you will find an executable in the current directory.
 
 ##Running the examples
