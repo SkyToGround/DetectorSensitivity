@@ -17,22 +17,6 @@ struct FindActivityFunctor : DenseFunctor<double> {
 	}
 	
 	//Should yield the same result as CalcTruePositiveProb
-//	int operator()(const VectorXd &p, VectorXd &res) const {
-//		double M = p[0];
-//		ArrayXd tot = S * M + B;
-//		res = VectorXd(1);
-//		ArrayXi i = ArrayXi::LinSpaced(C_L, 0, C_L - 1);
-//		ArrayXd tgt = ArrayXd::Zero(tot.size());
-//		for (int j = 0; j < tot.size(); j++) {
-//			if (C_L >= boost::math::max_factorial<double>::value or C_L > 50) {
-//				tgt[j] = gauss(i.cast<double>(), tot[j]).sum(); //Fix me, change for approximation of poisson distribution
-//			} else {
-//				tgt[j] = exp(-tot[j])*(pow(tot[j], i.cast<double>())/factorial(i)).sum();
-//			}
-//		}
-//		res[0] = tgt.prod() - beta;
-//		return 0;
-//	}
 	int operator()(const VectorXd &p, VectorXd &res) const {
 		double M = p[0];
 		ArrayXd tot = S * M + B;
@@ -41,7 +25,7 @@ struct FindActivityFunctor : DenseFunctor<double> {
 		if (C_L > 100) {
 			ArrayXi i = ArrayXi::LinSpaced(C_L - 1, 1, C_L - 1);
 			for (int j = 0; j < tot.size(); j++) {
-				tgt[j] = exp(-tot[j] + i.cast<double>()*log(tot[j]) - log((1.0+1.0/(12.0*i.cast<double>()))*sqrt(2*pi*i.cast<double>()))- i.cast<double>()*log(i.cast<double>()/e)).sum();
+				tgt[j] = exp(-tot[j] + i.cast<double>()*log(tot[j]) - log((1.0 + 1.0/(12.0*i.cast<double>()) + 1.0/(288.0*i.cast<double>()*i.cast<double>()))*sqrt(2*pi*i.cast<double>()))- i.cast<double>()*log(i.cast<double>()/e)).sum();
 			}
 		} else {
 			ArrayXi i = ArrayXi::LinSpaced(C_L, 0, C_L - 1);

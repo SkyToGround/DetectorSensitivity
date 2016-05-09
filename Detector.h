@@ -28,9 +28,6 @@ using namespace Eigen;
 
 const double e = 2.718281828459045;
 
-double gauss(const double x, const double mu);
-double gauss_cdf(const double x, const double mu);
-ArrayXd gauss(const ArrayXd x, const double mu);
 ArrayXd factorial(const ArrayXi f);
 ArrayXd pow(const double base, const ArrayXd exponent);
 
@@ -170,6 +167,7 @@ private:
 	 \return Probability.
 	 */
 	double p_mu(const unsigned int n, const double mu) const;
+	double p_mu_alt(const unsigned int n, const double mu) const;
 	
 	/*! Poisson cumulative probability function.
 	 \param n Index.
@@ -177,6 +175,7 @@ private:
 	 \return Cumulative probability.
 	 */
 	double P_mu(const unsigned int n, const double mu) const;
+	double P_mu_alt(const unsigned int n, const double mu) const;
 	
 	/*! Cumulative probablity function of max value of scanning process.
 	 \param n The tested value.

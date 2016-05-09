@@ -258,6 +258,7 @@ void FindGlobalMinima(CalcInfo &info, double &time, double &bestM) {
 	currentTime = lastTime;
 	current_C_L++;
 	while (true) {
+		PRINT_T(std::string("FindGlobalMinima(): Locating global minima for C_L = ") + lexical_cast<std::string>(current_C_L));
 		FindLocalMinima(info, current_C_L, currentTime, currentM);
 		if (currentM < lastM) {
 			lastM = currentM;

@@ -181,21 +181,6 @@ double Detector::S_mean(const double i_time) {
 	return int_S;
 }
 
-double gauss(const double x, const double mu) {
-	double sig = sqrt(mu);
-	return exp(-((x - mu) * (x - mu)) / (2.0*(sig * sig))) / (sig*2.5066282746310002);
-}
-
-double gauss_cdf(const double x, const double mu) {
-	double sig = sqrt(mu);
-	return 0.5*(1.0 + erf((x - mu) / (sig*sqrt(2))));
-}
-
-ArrayXd gauss(const ArrayXd x, const double mu) {
-	double sig = sqrt(mu);
-	return (-((x - mu) * (x - mu)) / (2.0*(sig*sig))).exp() / (sig*2.5066282746310002);
-}
-
 ArrayXd factorial(const ArrayXi f) {
 	ArrayXd retArr(f.size());
 	for (int i = 0; i < f.size(); i++) {
@@ -233,7 +218,7 @@ unsigned int Detector::CriticalLimit(const double alpha) const {
 	return i; //Must not be i - 1 as we are integrating to C_L - 1 according to the equation
 no_factorial:
 	while (res >= alpha) {
-		res -= exp(-B + i*log(B) - log((1.0+1.0/(12.0*i))*sqrt(2*pi*i))- i*log(i/e));
+		res -= exp(-B + i*log(B) - log((1.0 + 1.0/(12.0*i) + 1.0/(288.0 * i * i))*sqrt(2*pi*i))- i*log(i/e));
 		i++;
 	}
 	return i; //Must not be i - 1 as we are integrating to C_L - 1 according to the equation
@@ -309,11 +294,9 @@ double Detector::CalcTruePositiveProbFPH(const double fph, const double testAct,
 		}
 		if (false) {
 no_factorial2:
-			//res[y] = 1.0 - gauss_cdf(critical_limit - 1 + 0.5, total[y]);
 			res[y] = 1.0;
 			for (int k = 1; k <= critical_limit - 1; k++) {
-				//res[y] -= gauss(k, total[y]);
-				res[y] -= exp(-total[y] + k*log(total[y]) - log((1.0+1.0/(12.0*k))*sqrt(2*pi*k))- k*log(k/e));
+				res[y] -= exp(-total[y] + k*log(total[y]) - log((1.0 + 1.0/(12.0*k) + 1.0/(288.0*k*k))*sqrt(2*pi*k))- k*log(k/e));
 			}
 		}
 	}
@@ -449,9 +432,26 @@ double Detector::P_mu(const unsigned int n, const double mu) const {
 	return exp(-mu) * tempRes;
 }
 
+double Detector::p_mu_alt(const unsigned int n, const double mu) const {
+	return (exp(-mu) * pow(mu, n)) / boost::math::factorial<double>(n);
+}
+
+double Detector::P_mu_alt(const unsigned int n, const double mu) const {
+	double tempRes = 0;
+	for (int i = 1; i <= n; i++) {
+		tempRes += pow(mu, i) / boost::math::factorial<double>(i);
+	}
+	return tempRes;
+}
+
 double Detector::F_N(const unsigned int n) const {
 	const double totalTime = 3600.0;
-	double sup_part = (1.0 - (simBkg * integrationTime) / (n + 1.0)) * simBkg * (totalTime - integrationTime) * p_mu(n, simBkg * integrationTime);
+	double sup_part;
+	if (n > 100) {
+		sup_part = (1.0 - (simBkg * integrationTime) / (n + 1.0)) * simBkg * (totalTime - integrationTime) * p_mu_alt(n, simBkg * integrationTime);
+		return  P_mu_alt(n, simBkg * integrationTime) * exp(-sup_part);
+	}
+	sup_part = (1.0 - (simBkg * integrationTime) / (n + 1.0)) * simBkg * (totalTime - integrationTime) * p_mu(n, simBkg * integrationTime);
 	return  P_mu(n, simBkg * integrationTime) * exp(-sup_part);
 }
 
