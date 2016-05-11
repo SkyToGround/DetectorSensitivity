@@ -4,7 +4,7 @@
 #include "Detector.h"
 #include "Functors.h"
 
-Detector::Detector(BkgResponse bkg, DistResponse distResp, AngularResponse angResp, double edge_limit, unsigned int mean_iters, unsigned int sim_iters) : bkg(bkg), distResp(distResp), angResp(angResp), distance(2.0), integrationTime(1.0), velocity(8.333), edge_limit(edge_limit), mean_iters(mean_iters), sim_iters(sim_iters) {
+Detector::Detector(BkgResponse bkg, DistResponse distResp, AngularResponse angResp, double edge_limit, unsigned int mean_iters, unsigned int sim_iters, bool mt) : bkg(bkg), distResp(distResp), angResp(angResp), distance(2.0), integrationTime(1.0), velocity(8.333), edge_limit(edge_limit), mean_iters(mean_iters), sim_iters(sim_iters), mt(mt) {
 	CalcStartStopLM();
 }
 
@@ -334,6 +334,24 @@ double Detector::CalcActivity(double alpha, double beta, CalcType tp) {
 	VectorXd res(1);
 	
 	//We want to find a starting value that is close to our solution
+//	double low = 0.0;
+//	double adder = 0.0000001;
+//	double upp = 0.0;
+//	double negativeLimit = 0.0; //-beta / 2.0;
+//	double positiveLimit = (1.0 - beta) / 2.0;
+//	res[0] = -1;
+//	//First locate where we go to negative values
+//	while(res[0] < negativeLimit) {
+//		adder *= 10.0;
+//		low += adder;
+//		p[0] = low;
+//		functor(p, res);
+//		if (res[0] > positiveLimit) {
+//			upp = low;
+//		}
+//	}
+//	low -= adder;
+	
 	double low = 0.0001;
 	double upp = 0.0;
 	double adder = 0.0001;
@@ -376,7 +394,13 @@ double Detector::CalcActivity(double alpha, double beta, CalcType tp) {
 }
 
 double Detector::CalcActivityLM(double alpha, double beta) {
-	double initialGuess = CalcActivity(alpha, beta, CalcType::BEST);
+	double initialGuess = 1.0;
+	// The algorithm fails when trying to calculate activity for critical limits = 1 and does not work very well for critical limits = 2
+	if (CriticalLimit(alpha) > 2) {
+		//Alpha is in false positives per hour, we want it as false positives per measurement here. Fix me: dubble check the math here
+		double best_alpha = alpha / (3600.0/integrationTime);
+		initialGuess = CalcActivity(best_alpha, beta, CalcType::BEST);
+	}
 	unsigned int critical_limit = CriticalLimitLM(alpha);
 	
 	FindActivityFunctorLM functor(this, critical_limit, beta, sim_iters);
@@ -390,8 +414,9 @@ double Detector::CalcActivityLM(double alpha, double beta) {
 	double low = 0.0;
 	double adder = initialGuess * 0.1;
 	
-	double diffLimit = 0.0001;
+	double diffLimit = 0.001;
 	
+	PRINT_T(std::string("Detector::CalcActivityLM(): Sim. started with C_L = ") + lexical_cast<std::string>(critical_limit) + std::string("."));
 	do {
 		high = high + adder;
 		p[0] = high;
@@ -411,7 +436,7 @@ double Detector::CalcActivityLM(double alpha, double beta) {
 		} else {
 			low = testPoint;
 		}
-	} while (high - low > diffLimit);
+	} while ((high - low) / ((high + low) / 2.0) > diffLimit);
 	PRINT_T(std::string("Detector::CalcActivityLM(): Sim. finished with C_L = ") + lexical_cast<std::string>(critical_limit) + std::string("."));
 	return p[0];
 }
@@ -433,13 +458,15 @@ double Detector::P_mu(const unsigned int n, const double mu) const {
 }
 
 double Detector::p_mu_alt(const unsigned int n, const double mu) const {
-	return (exp(-mu) * pow(mu, n)) / boost::math::factorial<double>(n);
+	//return (exp(-mu) * pow(mu, n)) / boost::math::factorial<double>(n);
+	return exp(-mu + n*log(mu) - log((1.0 + 1.0/(12.0*n) + 1.0/(288.0 * n * n))*sqrt(2*pi*n))- n*log(n/e));
 }
 
 double Detector::P_mu_alt(const unsigned int n, const double mu) const {
 	double tempRes = 0;
 	for (int i = 1; i <= n; i++) {
-		tempRes += pow(mu, i) / boost::math::factorial<double>(i);
+		//tempRes += pow(mu, i) / boost::math::factorial<double>(i);
+		tempRes += exp(i*log(mu) - 0.5 * log(2*pi*i) - i * (log(i) - 1.0) - log(1.0+1.0/(12.0*i)));
 	}
 	return tempRes;
 }

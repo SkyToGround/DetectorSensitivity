@@ -34,7 +34,7 @@ ArrayXd pow(const double base, const ArrayXd exponent);
 class Detector {
 public:
 	enum class CalcType {BEST, MEAN, WORST, LIST_MODE};
-	Detector(BkgResponse bkg, DistResponse distResp, AngularResponse angResp, double edge_limit, unsigned int mean_iters, unsigned int sim_iters);
+	Detector(BkgResponse bkg, DistResponse distResp, AngularResponse angResp, double edge_limit, unsigned int mean_iters, unsigned int sim_iters, bool mt);
 	Detector();
 	~Detector();
 	void SetDistance(double distance);
@@ -153,6 +153,7 @@ private:
 	
 	unsigned int mean_iters;
 	unsigned int sim_iters;
+	bool mt;
 	
 	double integrationTime;
 	double dist_f(const double t) const;
