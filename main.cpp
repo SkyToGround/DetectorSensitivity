@@ -54,6 +54,7 @@ int main(int argc, const char * argv[])
 	("act_vs_time", po::value<std::string>(), "Create detection limit as a function of integration time data. Arguments must be of the form: \"start_time:stop_time:steps\". If this option is used, use of the \"output\" argument is strongly recommended. See manual and example files for more information.")
 	("integration_time", po::value<std::vector<double> >()->multitoken(), "Set a fixed integration time and calculate minimum detectable activity from that parameter. Can take multiple values. Do not use together with the \"act_vs_time\" argument. Must be greater than 0.")
 	("sim_iters", po::value<unsigned int>()->default_value(500000), "When performing calculations on list mode measurements, how many iterations should be used to calculate the probability of detecting a source. Default value is 20000.")
+	("mt_sim", po::value<bool>()->default_value(false), "When performing calculations on list mode measurements, use multithreading. This option should not be used when using multiple calculation parameters as the number of threads can then be to great. Default value is false.")
 	;
 	
 	po::options_description cmd_line;
@@ -324,9 +325,10 @@ int main(int argc, const char * argv[])
 		outDev = OutputResult::OutputType::JSON_FILE;
 	}
 	
+	bool mt = vm["mt_sim"].as<bool>();
 	
 	CalcCoordinator calc(outDev, output_file);
-	Detector det(calBkg, distResp, angResp, curve_limit, mean_iters, sim_iters);
+	Detector det(calBkg, distResp, angResp, curve_limit, mean_iters, sim_iters, mt);
 	
 	for (int a = 0; a < dists.size(); a++) {
 		det.SetDistance(dists[a]);
