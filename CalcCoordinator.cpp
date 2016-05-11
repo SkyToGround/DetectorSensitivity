@@ -86,9 +86,9 @@ int CalcThread::CalcTimeVsActData(CalcInfo &info) {
 			clValue.push_back(current_C_L);
 			
 			timeActVec.push_back(std::pair<double, double>(currentTime, currentM));
-			PRINT_T(std::string("CalcThread::CalcTimeVsActData(): Storing results for C_L = ") + lexical_cast<std::string>(current_C_L) + std::string("."));
+			PRINT_T(std::string("CalcThread::CalcTimeVsActData(): Storing results for C_L = ") + lexical_cast<std::string>(current_C_L) + std::string(" (t=") + lexical_cast<std::string>(currentTime) + std::string(", m=") + lexical_cast<std::string>(currentM) + std::string(")."));
 		} else {
-			PRINT_T(std::string("CalcThread::CalcTimeVsActData(): Throwing away results for C_L = ") + lexical_cast<std::string>(current_C_L) + std::string("."));
+			PRINT_T(std::string("CalcThread::CalcTimeVsActData(): Throwing away results for C_L = ") + lexical_cast<std::string>(current_C_L) + std::string(" (t=") + lexical_cast<std::string>(currentTime) + std::string(", m=") + lexical_cast<std::string>(currentM) + std::string(")."));
 		}
 		current_C_L++;
 	}
