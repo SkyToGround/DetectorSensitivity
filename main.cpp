@@ -13,6 +13,7 @@
 #include <boost/lexical_cast.hpp>
 #include <boost/filesystem.hpp>
 #include "ConsolePrint.hpp"
+#include "Simulation.hpp"
 
 namespace po = boost::program_options;
 
@@ -327,8 +328,10 @@ int main(int argc, const char * argv[])
 	
 	bool mt = vm["mt_sim"].as<bool>();
 	
+	boost::shared_ptr<ListModeSimulator> simulator(new ListModeSimulator(sim_iters, mt));
+	
 	CalcCoordinator calc(outDev, output_file);
-	Detector det(calBkg, distResp, angResp, curve_limit, mean_iters, sim_iters, mt);
+	Detector det(calBkg, distResp, angResp, curve_limit, mean_iters, sim_iters, simulator);
 	
 	for (int a = 0; a < dists.size(); a++) {
 		det.SetDistance(dists[a]);
@@ -352,6 +355,7 @@ int main(int argc, const char * argv[])
 	}
 	
 	calc.RunCalculations();
+	simulator.get()->CloseThreads();
 	ConsolePrint::Close();
 	return 0;
 }
