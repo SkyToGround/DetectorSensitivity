@@ -33,7 +33,7 @@ public:
 private:
 	bool noAngResp;
 	
-	mt19937 rand;
+	std::mt19937 rand;
 	
 	void CreateResponseFunc();
 	
@@ -89,7 +89,7 @@ private:
 	double activityUncertainty;
 	double p1, p2;
 	bool curve_fit;
-	mt19937 rand;
+	std::mt19937 rand;
 };
 
 #endif /* defined(__NeutronDetectorSim__AngularResponse__) */
