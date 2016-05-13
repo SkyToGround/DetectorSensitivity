@@ -4,7 +4,7 @@
 #include "Detector.h"
 #include "Functors.h"
 
-Detector::Detector(BkgResponse bkg, DistResponse distResp, AngularResponse angResp, double edge_limit, unsigned int mean_iters, unsigned int sim_iters, bool mt) : bkg(bkg), distResp(distResp), angResp(angResp), distance(2.0), integrationTime(1.0), velocity(8.333), edge_limit(edge_limit), mean_iters(mean_iters), sim_iters(sim_iters), mt(mt) {
+Detector::Detector(BkgResponse bkg, DistResponse distResp, AngularResponse angResp, double edge_limit, unsigned int mean_iters, unsigned int sim_iters, boost::shared_ptr<ListModeSimulator> simulator) : bkg(bkg), distResp(distResp), angResp(angResp), distance(2.0), integrationTime(1.0), velocity(8.333), edge_limit(edge_limit), mean_iters(mean_iters), sim_iters(sim_iters), simulator(simulator) {
 	CalcStartStopLM();
 }
 
@@ -72,6 +72,7 @@ void Detector::SetDistance(double distance) {
 
 void Detector::SetIntegrationTime(double intTime) {
 	Detector::integrationTime = intTime;
+	CalcStartStopLM();
 }
 
 double Detector::dist_f(const double t) const {
@@ -468,7 +469,7 @@ double Detector::P_mu_alt(const unsigned int n, const double mu) const {
 		//tempRes += pow(mu, i) / boost::math::factorial<double>(i);
 		tempRes += exp(i*log(mu) - 0.5 * log(2*pi*i) - i * (log(i) - 1.0) - log(1.0+1.0/(12.0*i)));
 	}
-	return tempRes;
+	return exp(-mu) * tempRes;
 }
 
 double Detector::F_N(const unsigned int n) const {
@@ -476,10 +477,10 @@ double Detector::F_N(const unsigned int n) const {
 	double sup_part;
 	if (n > 100) {
 		sup_part = (1.0 - (simBkg * integrationTime) / (n + 1.0)) * simBkg * (totalTime - integrationTime) * p_mu_alt(n, simBkg * integrationTime);
-		return  P_mu_alt(n, simBkg * integrationTime) * exp(-sup_part);
+		return P_mu_alt(n, simBkg * integrationTime) * exp(-sup_part);
 	}
 	sup_part = (1.0 - (simBkg * integrationTime) / (n + 1.0)) * simBkg * (totalTime - integrationTime) * p_mu(n, simBkg * integrationTime);
-	return  P_mu(n, simBkg * integrationTime) * exp(-sup_part);
+	return P_mu(n, simBkg * integrationTime) * exp(-sup_part);
 }
 
 double Detector::SimMeasurements(double actFac, unsigned int critical_limit, unsigned int iterations, double &meanMax) const {
@@ -535,45 +536,59 @@ double Detector::SimMeasurements(double actFac, unsigned int critical_limit, uns
 }
 
 double Detector::SimMeasurementsOpti(double actFac, unsigned int critical_limit, unsigned int iterations) const {
-	unsigned int truePositiveProb = 0;
-	double maxRate = S(0.0) * actFac + simBkg;
+	SimulationParams params;
+	params.distance = distance;
+	params.velocity = velocity;
+	params.angResp = angResp;
+	params.distResp = distResp;
+	params.activityFactor = actFac;
+	params.background = simBkg;
+	params.critical_limit = critical_limit;
+	params.startTime = startTime;
+	params.stopTime = stopTime;
+	params.integrationTime = integrationTime;
+	return simulator.get()->PerformSimulation(params);
 	
-	std::time_t now = std::time(0);
-	boost::random::mt19937 gen{static_cast<std::uint32_t>(now)};
-	boost::random::exponential_distribution<> expDist(maxRate);
-	boost::random::uniform_real_distribution<> rejectDist(0, maxRate);
 	
-	double cTime, pTime;
-	
-	boost::circular_buffer<double> eventQueue(critical_limit);
-	
-	double cStopTime;
-	
-	for (int i = 0; i < iterations; i++) {
-		if (startTime>-integrationTime) {
-			cTime = -integrationTime + expDist(gen);
-			cStopTime = integrationTime;
-		} else {
-			cTime = startTime + expDist(gen);
-			cStopTime = stopTime;
-		}
-		eventQueue.clear(); //Clear the queue
-		do {
-			if (rejectDist(gen) <= S(cTime) * actFac + simBkg) {
-				eventQueue.push_back(cTime);
-				pTime = cTime - integrationTime;
-				while (eventQueue.front() < pTime) {
-					eventQueue.pop_front();
-				}
-				if (eventQueue.size() >= critical_limit) {
-					truePositiveProb++;
-					break;
-				}
-			}
-			cTime += expDist(gen);
-		} while (cTime < cStopTime);
-	}
-	return 1.0 - double(truePositiveProb) / double(iterations);
+//	unsigned int truePositiveProb = 0;
+//	double maxRate = S(0.0) * actFac + simBkg;
+//	
+//	std::time_t now = std::time(0);
+//	boost::random::mt19937 gen{static_cast<std::uint32_t>(now)};
+//	boost::random::exponential_distribution<> expDist(maxRate);
+//	boost::random::uniform_real_distribution<> rejectDist(0, maxRate);
+//	
+//	double cTime, pTime;
+//	
+//	boost::circular_buffer<double> eventQueue(critical_limit);
+//	
+//	double cStopTime;
+//	
+//	for (int i = 0; i < iterations; i++) {
+//		if (startTime>-integrationTime) {
+//			cTime = -integrationTime + expDist(gen);
+//			cStopTime = integrationTime;
+//		} else {
+//			cTime = startTime + expDist(gen);
+//			cStopTime = stopTime;
+//		}
+//		eventQueue.clear(); //Clear the queue
+//		do {
+//			if (rejectDist(gen) <= S(cTime) * actFac + simBkg) {
+//				eventQueue.push_back(cTime);
+//				pTime = cTime - integrationTime;
+//				while (eventQueue.front() < pTime) {
+//					eventQueue.pop_front();
+//				}
+//				if (eventQueue.size() >= critical_limit) {
+//					truePositiveProb++;
+//					break;
+//				}
+//			}
+//			cTime += expDist(gen);
+//		} while (cTime < cStopTime);
+//	}
+//	return 1.0 - double(truePositiveProb) / double(iterations);
 }
 
 void Detector::CalcStartStopLM() {

@@ -22,6 +22,8 @@
 #include <boost/circular_buffer.hpp>
 #include <queue>
 #include "ConsolePrint.hpp"
+#include <boost/shared_ptr.hpp>
+#include "Simulation.hpp"
 
 using namespace std;
 using namespace Eigen;
@@ -34,7 +36,7 @@ ArrayXd pow(const double base, const ArrayXd exponent);
 class Detector {
 public:
 	enum class CalcType {BEST, MEAN, WORST, LIST_MODE};
-	Detector(BkgResponse bkg, DistResponse distResp, AngularResponse angResp, double edge_limit, unsigned int mean_iters, unsigned int sim_iters, bool mt);
+	Detector(BkgResponse bkg, DistResponse distResp, AngularResponse angResp, double edge_limit, unsigned int mean_iters, unsigned int sim_iters, boost::shared_ptr<ListModeSimulator> simulator);
 	Detector();
 	~Detector();
 	void SetDistance(double distance);
@@ -138,6 +140,8 @@ public:
 	
 	void RandomizeParameters();
 private:
+	boost::shared_ptr<ListModeSimulator> simulator;
+	
 	DistResponse distResp;
 	AngularResponse angResp;
 	BkgResponse bkg;
@@ -153,7 +157,6 @@ private:
 	
 	unsigned int mean_iters;
 	unsigned int sim_iters;
-	bool mt;
 	
 	double integrationTime;
 	double dist_f(const double t) const;
