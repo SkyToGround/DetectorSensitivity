@@ -17,10 +17,16 @@ Start by chaning directory to the source code directory (which contains the "CMa
 When the application is compiled, you will find an executable in the current directory.
 
 ##Running the examples
-As quite a few arguments are required in order for the application to run, it is suggested that you start by testing the provided example-files. Run an example using the "--config_file" argument, e.g. "./MobileDetectorSim --config_file example_3.ini".
+As quite a few arguments are required in order for the application to run, it is suggested that you start by testing the provided example-files. Run an example using the "--config_file" argument, e.g. "./MobileDetectorSim --config_file example_3.ini". Use the `--verbose` flag to get information on the progress of the calculations.
 
 Note that the file "example_1.ini" has a set of settings which requires a significant amount of time to run.
 
+##Disclaimer
+I have run several tests of the code to make sure that the calculations are correct. However, I can not ensure that they really are and thus the results should be dubble checked with experimental data if it is to be used with real measurement systems.
+
+Due to some recent changes in the code, when setting the application to find the optimal integration time, it is possible for the minima finding algorithm to get stuck on a local minima and thus the `act_vs_time` command should be used so that you can verify that the code actually found the global minima.
+
+If "unexpected" input parameters are used, the code might very well enter an infinite loop. If you are running in `verbose` mode and have not received a new message in a while, the code has probably entered an infinite loop. The suggested solution to that (for now) is to test other input values or to start debugging.
 
 ##To-Do
 These are in no particular order.
@@ -33,3 +39,4 @@ These are in no particular order.
 * Take the attenuation of gamma radiation in air into account.
 * Pick the initial C_L value with more intelligence. Too low values of C_L increases the calculation time quite a bit.
 * Better integration algorithm.
+* Check if it is possible to remove the use of `long double` in the list mode part of the code.
