@@ -70,7 +70,7 @@ void SimulatorThread::operator()() {
 	boost::random::mt19937 gen{static_cast<std::uint32_t>(now)  + threadId};
 	double maxRate;
 	double cTime, pTime;
-	double cStopTime;
+	double cStartTime, cStopTime;
 	unsigned int truePositiveProb = 0;
 	
 	SimulationParams cParams;
@@ -89,15 +89,16 @@ void SimulatorThread::operator()() {
 			boost::random::uniform_real_distribution<> rejectDist(0, maxRate);
 			boost::circular_buffer<double> eventQueue(cParams.critical_limit);
 			truePositiveProb = 0;
+			if (cParams.startTime > -cParams.integrationTime) {
+				cStartTime = -cParams.integrationTime;
+				cStopTime = cParams.integrationTime;
+			} else {
+				cStartTime = cParams.startTime;
+				cStopTime = cParams.stopTime;
+			}
 			
 			for (int i = 0; i < cParams.iterations; i++) {
-				if (cParams.startTime > -cParams.integrationTime) {
-					cTime = -cParams.integrationTime + expDist(gen);
-					cStopTime = cParams.integrationTime;
-				} else {
-					cTime = cParams.startTime + expDist(gen);
-					cStopTime = cParams.stopTime;
-				}
+				cTime = cStartTime + expDist(gen);
 				eventQueue.clear(); //Clear the queue
 				do {
 					if (rejectDist(gen) <= S(cTime) * cParams.activityFactor + cParams.background) {
