@@ -276,19 +276,26 @@ void FindLocalMinima(CalcInfo &info, int target_C_L, double &iTime, double &minM
 	const double maxTimeDiff = 0.00001; //The maximum time step allowed when finding minimas, might need to be changed
 	double upper_time = iTime + maxTimeDiff * 2; //To assist the algorithm slightly, we add the maximum time diff
 	double lower_time = 0.0;
+	double midTime;
 	
 	//Find where we have C_L = target_C_L
 	//This is done by stepping up and down in integration time until C_L = target_C_L
 	int current_C_L;
-	do {
+	info.det.SetIntegrationTime(upper_time);
+	current_C_L = info.det.CriticalLimitFPH(info.fpPerHour, info.cType);
+	while (current_C_L < target_C_L) {
+		upper_time *= 1.3;
 		info.det.SetIntegrationTime(upper_time);
 		current_C_L = info.det.CriticalLimitFPH(info.fpPerHour, info.cType);
-		
+	}
+	do {
+		midTime = lower_time + (upper_time - lower_time) / 2.0;
+		info.det.SetIntegrationTime(midTime);
+		current_C_L = info.det.CriticalLimitFPH(info.fpPerHour, info.cType);
 		if (current_C_L > target_C_L) {
-			upper_time = lower_time + (upper_time - lower_time) / 2.0;
+			upper_time = midTime;
 		} else if (current_C_L < target_C_L) {
-			lower_time = upper_time;
-			upper_time *= 2;
+			lower_time = midTime;
 		}
 	 } while (current_C_L != target_C_L);
 	
