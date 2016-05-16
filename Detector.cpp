@@ -458,16 +458,16 @@ double Detector::P_mu(const unsigned int n, const double mu) const {
 	return exp(-mu) * tempRes;
 }
 
-double Detector::p_mu_alt(const unsigned int n, const double mu) const {
+long double Detector::p_mu_alt(const unsigned int n, const long double mu) const {
 	//return (exp(-mu) * pow(mu, n)) / boost::math::factorial<double>(n);
-	return exp(-mu + n*log(mu) - log((1.0 + 1.0/(12.0*n) + 1.0/(288.0 * n * n))*sqrt(2*pi*n))- n*log(n/e));
+	return exp(-mu + n*log(mu) - log((1.0L + 1.0L/(12.0L*n) + 1.0L/(288.0L * n * n))*sqrt(2L*pi*n))- n*(log(n) - 1.0L));
 }
 
-double Detector::P_mu_alt(const unsigned int n, const double mu) const {
-	double tempRes = 0;
+long double Detector::P_mu_alt(const unsigned int n, const long double mu) const {
+	long double tempRes = 0;
 	for (int i = 1; i <= n; i++) {
 		//tempRes += pow(mu, i) / boost::math::factorial<double>(i);
-		tempRes += exp(i*log(mu) - 0.5 * log(2*pi*i) - i * (log(i) - 1.0) - log(1.0+1.0/(12.0*i)));
+		tempRes += exp(i*log(mu) - 0.5L * log(2L*pi*i) - i * (log(i) - 1.0) - log(1.0L+1.0L/(12.0L*i)));
 	}
 	return exp(-mu) * tempRes;
 }
@@ -476,7 +476,7 @@ double Detector::F_N(const unsigned int n) const {
 	const double totalTime = 3600.0;
 	double sup_part;
 	if (n > 100) {
-		sup_part = (1.0 - (simBkg * integrationTime) / (n + 1.0)) * simBkg * (totalTime - integrationTime) * p_mu_alt(n, simBkg * integrationTime);
+		sup_part = (1.0L - (long double)(simBkg * integrationTime) / (n + 1.0L)) * simBkg * (long double)(totalTime - integrationTime) * p_mu_alt(n, simBkg * integrationTime);
 		return P_mu_alt(n, simBkg * integrationTime) * exp(-sup_part);
 	}
 	sup_part = (1.0 - (simBkg * integrationTime) / (n + 1.0)) * simBkg * (totalTime - integrationTime) * p_mu(n, simBkg * integrationTime);

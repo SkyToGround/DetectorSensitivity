@@ -171,7 +171,7 @@ private:
 	 \return Probability.
 	 */
 	double p_mu(const unsigned int n, const double mu) const;
-	double p_mu_alt(const unsigned int n, const double mu) const;
+	long double p_mu_alt(const unsigned int n, const long double mu) const;
 	
 	/*! Poisson cumulative probability function.
 	 \param n Index.
@@ -179,7 +179,7 @@ private:
 	 \return Cumulative probability.
 	 */
 	double P_mu(const unsigned int n, const double mu) const;
-	double P_mu_alt(const unsigned int n, const double mu) const;
+	long double P_mu_alt(const unsigned int n, const long double mu) const;
 	
 	/*! Cumulative probablity function of max value of scanning process.
 	 \param n The tested value.
